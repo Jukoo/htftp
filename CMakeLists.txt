@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.25) 
+project(localserver  VERSION 1.0 DESCRIPTION "simple local webserver for quick serving document page") 
+set(CMAKE_BUILD_TYPE Debug) 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin) 
+
+#add_definitions(-DSBP_PERFORM_REQST)
+option(PERFORM_LOCAL_REQST "Make a local request automaticly"  OFF) 
+if(PERFORM_LOCAL_REQST)  
+endif() 
+add_executable(${PROJECT_NAME}   server.c  localws.c) 
+set_target_properties(${PROJECT_NAME} PROPERTIES VERSION ${PROJECT_VERSION})
