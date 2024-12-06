@@ -39,46 +39,37 @@ main(void)
 
   rc  = listen(server_socket_fd,  LISTEN_BACKLOG) ;  
   check(rc, listen) ;  
-#if 0
-#ifdef  SBP_PERFORM_REQST 
-  pid_t subprocess = fork() ;  
-  assert(~0 != subprocess) ;   
-  if (0 == subprocess) 
-  {
-     //!TODO : nice to have :  get  context 
-     //        to identify if it running on subprocess 
-     perform_local_http_request("wget") ;  
-  }
-  else{
-#else 
-  fprintf(stdout, "hit at localhost:%i \n", DEFAULT_PORT ); 
-#endif 
-#endif 
+  
   while (1)  
   { 
     char http_request_raw_buffer[HTTP_REQST_BUFF] ={ 0 };  
     int agent_socket_fd  = accept(server_socket_fd , NULL , NULL ) ; // (SA*) &server , &server_len); 
-    recv(agent_socket_fd ,  http_request_raw_buffer , HTTP_REQST_BUFF,0);  
+    recv(agent_socket_fd ,  http_request_raw_buffer ,HTTP_REQST_BUFF,0); 
+
+    printf("%s\n" ,  http_request_raw_buffer) ; 
     
     http_reqhdr_t  * http_header = parse_http_request(http_request_raw_buffer) ;  
     assert(http_header) ;  
-    
+
     char *target_file = http_get_requested_content(http_header) ;   
     //!TODO :  Dispalay the content of directory  if no index.html  found  
    
     char *resource_content = http_read_content(target_file) ; 
      
-    printf("resource %s \n" , resource_content) ;  
-    
-    
-    
+    printf("resource %s \n" , resource_content) ; 
+    int status = 0 ; 
+    if (resource_content) 
+      status  = http_transmission(agent_socket_fd ,  resource_content) ; 
+      
+    if(status) 
+         puts("error transmission") ;
 
+    
     close(agent_socket_fd) ; 
-    on_exit(clean_http_request_header ,  http_header) ; 
 
   }
   shutdown(server_socket_fd , SHUT_RDWR) ; 
-  //close(server_socket_fd) ; 
+  close(server_socket_fd) ; 
 
   return EXIT_SUCCESS ; 
 }

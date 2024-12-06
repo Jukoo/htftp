@@ -11,18 +11,19 @@
 #define  __vptr  void * 
 #define  __null  (__vptr) 0 
 #define  __bunit  1<<3 
+#define  __fignore 0              //! ignore flag 
 
 #if !defined(DEFAULT_PORT) 
 # define  DEFAULT_PORT  0x2382
 #endif
 
-#define CRLF "\r\n\r\n" 
-#define HTTP_HEADER_RESPONSE "HTTP/1.1 200 OK\r\n\r\n"
+#define CRLF \r\n\r\n  
+#define __STR(x) #x 
+#define STR(x)  __STR(x)
+#define HTTP_HEADER_RESPONSE_OK "HTTP/1.1 200 OK\r\n\r\n"
+#define HTTP_HEADER_RESPONSE_NF "HTTP/1.1 404\r\n\r\n"
 #define HTTP_VERSION_1 "HTTP/1.1"  
 #define HTTP_RESPONSE_OK   "200"
-
-//#define hsr(__type) \
-//  __CONCAT(__CONCAT(HTTP_VERSION_1,HTTPS_RESPONSE_##__type),HEL)
 
 
 enum { 
@@ -38,13 +39,12 @@ enum {
   http_get_##__item(http_reqhdr_t *) 
 
 
-
 #define LISTEN_BACKLOG  10 
 #define CONFIGURE_LOCAL {PF_INET, htons(DEFAULT_PORT) ,htonl(INADDR_ANY) }   
 
 #define HTTP_REQUEST_HEADER_LINE  3 
 
-#define  HTTP_REQST_BUFF  sizeof(__vptr) << __bunit  
+#define  HTTP_REQST_BUFF  sizeof(__vptr) <<  (__bunit << 1)  
 
 #define  check(__return_code , fcall)       \
   if(~0 == __return_code)                   \
@@ -81,5 +81,6 @@ char * http_query(http_reqhdr_t *  http_req  , int section);
 
 char * http_read_content(char  __filename   __parmreq) ; 
 
+int http_transmission(int  __user_agent   ,  char  content_delivry __parmreq) ; 
 
 #endif 

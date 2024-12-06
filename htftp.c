@@ -7,6 +7,7 @@
 #include <errno.h> 
 #include <ctype.h>
 #include <fcntl.h> 
+#include <sys/socket.h> 
 
 #include "htftp.h"
 
@@ -30,26 +31,33 @@ http_reqhdr_t  *parse_http_request(char http_rbuff __parmreq)
    http_reqhdr_t  * hrq  = (http_reqhdr_t *) malloc(sizeof(*hrq)) ;  
    assert(hrq) ; 
    char *rbuff = (char *) http_rbuff, *header[HTTP_REQUEST_HEADER_LINE], 
-        *n , s[0xff] = {0}; 
+        *n , s[2048] = {0}; 
     
    size_t size ,  i= 0 ;  
 
    while((*rbuff & 0xff) !=0 && i !=  HTTP_REQUEST_HEADER_LINE )   
    { 
-      n = strchr(rbuff ,10) ;
-      assert(n) ; 
-      size =  n  - rbuff; 
+      n = strchr(rbuff ,10) ; 
+      
+      if (!n  && 2 == i) 
+      { 
+        //!just make a raw copy  and live  loop 
+        memcpy(s , rbuff, strlen(rbuff)) ; 
+       *(header+i) = strdup(s) ; 
+        break ; 
+      }  
+      
+      size =  n  - rbuff;
       memcpy(s , rbuff , size) ;
       *(header+i) = strdup(s) ; 
-      
       rbuff  = n+1;   
-      i++; 
+      i=-~i ;  
    } 
  
    (void *)explode(&hrq->http_hproto ,  *(header+0) ); 
    hrq->server_host  = strdup(*(header+1)); 
    hrq->user_agent   = strdup(*(header+2)); 
-  
+
    release_local_alloc(header)  ; 
    return  hrq ; 
 }
@@ -76,20 +84,6 @@ static void  release_local_alloc(char  **_arr)
    }
 } 
 
-void  perform_local_http_request(char request_cmd  __parmreq ) 
-{
-  
-  char url[20]={0} ;
-  sprintf(url , "localhost:%i" ,  DEFAULT_PORT); 
-  fprintf(stdout , "subprocess requesting using  %s @%s \n" , request_cmd  , url);
-  sleep(2);
-  int s = execlp(request_cmd , request_cmd , url , NULL) ; 
-  if (~0  == s )  
-    exit(s); 
-  
-  exit(EXIT_SUCCESS); 
-  
-}
 
 char *http_get_requested_content(http_reqhdr_t *http_req)   
 {
@@ -134,13 +128,14 @@ char * http_query(http_reqhdr_t *  http_req  , int section)
 
 char * http_read_content(char filename   __parmreq) 
 {
-  char content_buffer[(8 << 9)] =  {0} ; 
+  char content_buffer[HTTP_REQST_BUFF] =  {0} ; 
   if(strlen(filename) == 1 )   
   {
     //! Read the content of dirent   
     return  (char *) 0 ;  
   }
-
+  
+  //!TODO  : check if the file existe  
   int  hyper_text_fd = open(filename , O_RDONLY) ; 
   if (~0 ==  hyper_text_fd)  
     return (char *) 0; 
@@ -151,6 +146,20 @@ char * http_read_content(char filename   __parmreq)
   close(hyper_text_fd) ; 
   
   return strdup(content_buffer) ; 
+  
+}
+
+
+int http_transmission(int  user_agent_fd   ,  char  content_delivry __parmreq) 
+{
+  //!NOTE : Change it 
+  char content_buffer[HTTP_REQST_BUFF] = HTTP_HEADER_RESPONSE_OK;  
+  strcat(content_buffer,   content_delivry) ; 
+  strcat(content_buffer,  STR(CRLF))   ; 
+  ssize_t content_bsize  = strlen(content_buffer) ;  
+  
+  ssize_t s = send(user_agent_fd , content_buffer , sizeof(content_buffer) ,  __fignore);  
+  return  s^sizeof(content_buffer)  ; 
   
 }
 void clean_http_request_header(int status_code ,  void * hrd)  
