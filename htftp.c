@@ -8,6 +8,9 @@
 #include <ctype.h>
 #include <fcntl.h> 
 #include <sys/socket.h> 
+#include <dirent.h> 
+#include <sys/stat.h> 
+
 
 #include "htftp.h"
 
@@ -41,19 +44,19 @@ http_reqhdr_t  *parse_http_request(char http_rbuff __parmreq)
       
       if (!n  && 2 == i) 
       { 
-        //!just make a raw copy  and live  loop 
+        //!just make a raw copy  and leave ... 
         memcpy(s , rbuff, strlen(rbuff)) ; 
        *(header+i) = strdup(s) ; 
         break ; 
       }  
-      
+
       size =  n  - rbuff;
       memcpy(s , rbuff , size) ;
       *(header+i) = strdup(s) ; 
       rbuff  = n+1;   
       i=-~i ;  
    } 
- 
+
    (void *)explode(&hrq->http_hproto ,  *(header+0) ); 
    hrq->server_host  = strdup(*(header+1)); 
    hrq->user_agent   = strdup(*(header+2)); 
@@ -64,16 +67,19 @@ http_reqhdr_t  *parse_http_request(char http_rbuff __parmreq)
 
 static http_protocol_header_t  * explode(http_protocol_header_t *hproto , char raw_data __parmreq)  
 {
-  char chunck[3][100] ; 
-  sscanf(raw_data , "%s  %s  %s", (chunck+METHOD),(chunck+RESOURCE),(chunck+VERSION)) ;
-  hproto->method       = strdup((char*)(chunck+METHOD)) ;   
-  hproto->request      = strdup((char*)(chunck+RESOURCE));   
-  hproto->http_version = strdup((char*)(chunck+VERSION)) ; 
+  char chunck[HTTP_REQUEST_HEADER_LINE][0xff] = {0} ; 
+
+  sscanf(raw_data , "%s  %s  %s",  
+         hproto->method  = strdup((char*)(chunck+METHOD)),
+         hproto->request = strdup((char*)(chunck+RESOURCE)),  
+         hproto->http_version = strdup((char*)(chunck+VERSION)) ) ;
+
+  //!TODO : check  hproto  members  contains data ;  
   return hproto ; 
 }
 
-//! freeing resources because  strdup function 
-//  do memory allocation under the hood 
+//! freeing resources because strdup function 
+//  do memory allocation 
 static void  release_local_alloc(char  **_arr) 
 {
    size_t i = ~0 ; 
@@ -84,19 +90,38 @@ static void  release_local_alloc(char  **_arr)
    }
 } 
 
-
+//! retrieve  the requested content from http_request_header_t 
 char *http_get_requested_content(http_reqhdr_t *http_req)   
 {
-  //!get requested file  
-  char *requested_filename  = http_get_RESOURCE(http_req)  ;    
-  if(strlen(requested_filename) == 1 ) //&& (file & 0xff))
-  {
-    //!by default  if it's only /  that will look index.html file  
-    //!TODO: to be removed   
-    requested_filename  =  strdup((char *)"/index.html") ; 
-  }  
+  char *requested_filename  = http_get_RESOURCE(http_req)  ; 
+  char *http_default_hypertext =  HTTP_HYPERTEXT_DEFAULT_FNAME  ; 
 
-  return strdup(requested_filename+1) ; 
+  //!  looking for / only that mean it try  to reach "index.html"  
+  if(strlen(requested_filename) == 1)
+  {
+    if(access(http_default_hypertext , F_OK|R_OK)) 
+      return nptr; 
+
+    return   strdup(http_default_hypertext) ; 
+  } 
+  
+  requested_filename =  (requested_filename+1) ;  
+  
+  struct stat stbuff ;  
+  if(stat(requested_filename ,  &stbuff))  return  nptr ; 
+  
+  if(stbuff.st_mode & S_IFREG)
+    return strdup(requested_filename) ;  
+  if (stbuff.st_mode & S_IFDIR)
+  {
+   //? whate i should return  
+   char encapsulate[200] = {0} ; 
+   memcpy(encapsulate ,requested_filename, strlen(requested_filename));
+   strcat(encapsulate , "#") ; 
+   return strdup(encapsulate) ; 
+  }
+
+  return nptr ;  
 }
 
 char * http_get_METHOD(http_reqhdr_t * http_req) 
@@ -126,22 +151,27 @@ char * http_query(http_reqhdr_t *  http_req  , int section)
 }
 
 
-char * http_read_content(char filename   __parmreq) 
+char * http_read_content(char *filename ) 
 {
-  char content_buffer[HTTP_REQST_BUFF] =  {0} ; 
-  if(strlen(filename) == 1 )   
+  char content_buffer[HTTP_REQST_BUFF] =  {0} ;  
+  
+  if(!filename)      
   {
-    //! Read the content of dirent   
-    return  (char *) 0 ;  
-  }
+    return http_list_dirent_content(nptr) ;   
+  } 
+  char *is_dir = strchr(filename , 0x23) ; 
+  if(is_dir)
+  {
+    *is_dir = 0 ; 
+    return http_list_dirent_content(filename) ; 
+  } 
   
   //!TODO  : check if the file existe  
   int  hyper_text_fd = open(filename , O_RDONLY) ; 
   if (~0 ==  hyper_text_fd)  
-    return (char *) 0; 
-  
+    return nptr;  
 
-  size_t rbyte =  read(hyper_text_fd ,content_buffer , (8<<9)) ; 
+  size_t rbyte =  read(hyper_text_fd ,content_buffer , HTTP_REQST_BUFF)  ; 
   assert(!rbyte^(strlen(content_buffer))) ; 
   close(hyper_text_fd) ; 
   
@@ -179,5 +209,45 @@ void clean_http_request_header(int status_code ,  void * hrd)
   }
 
   free(hrq) ; 
-  hrq=(void *)0 ;  
+  hrq=nptr;  
+} 
+
+static char * http_list_dirent_content(char * dir) 
+{
+   
+  errno = 0 ; 
+  char current_dirent[PATH_MAX_LENGHT] = {0} ; 
+  getcwd(current_dirent , PATH_MAX_LENGHT) ; 
+  if ( 0 != errno &&  (ERANGE & errno)) 
+  {
+     warn("Total lenght Path Exceeded %s\n",   strerror(*__errno_location()))   ; 
+  }
+
+  if(dir)  
+  {
+    char subdir[PATH_MAX_LENGHT] = {0} ; 
+    sprintf(subdir , "/%s" , dir) ; 
+    strcat(current_dirent ,  subdir) ; 
+  }
+   
+  char  http_dom_content[HTTP_REQST_BUFF] = HTTP_DIRENDER_DOCTYPE; 
+  
+  DIR *dirent  = opendir(current_dirent) ;  
+  //!TODO : check  dirent   
+  struct dirent  *dirent_scaner =  (void *) 0  ;   
+  int i = 0 ;  
+  while ( (dirent_scaner = readdir(dirent)) != (void *) 0 )   
+  {  
+    //!TODO :  feed the virtual file 
+    if(dirent_scaner->d_type & (DT_REG | DT_DIR))
+    {  
+      hypertex_http_dom_append2list(dirent_scaner->d_name, http_dom_content ) ; 
+      if (10 == i)break ; 
+      i=-~i ;
+    }
+  } 
+  
+  strcat(http_dom_content,HTTP_DIRENDER_DOCTYPE_END) ; 
+
+  return  strdup(http_dom_content) ;  
 }

@@ -14,9 +14,8 @@
 
 #include "htftp.h" 
 
-static int ws =0 ; 
 int
-main(void) 
+main(int ac , char **av , char **env)   
 {
 
   setbuf(stdout , __null) ; 
@@ -43,7 +42,7 @@ main(void)
   while (1)  
   { 
     char http_request_raw_buffer[HTTP_REQST_BUFF] ={ 0 };  
-    int agent_socket_fd  = accept(server_socket_fd , NULL , NULL ) ; // (SA*) &server , &server_len); 
+    int agent_socket_fd  = accept(server_socket_fd , nptr, nptr ) ; 
     recv(agent_socket_fd ,  http_request_raw_buffer ,HTTP_REQST_BUFF,0); 
 
     printf("%s\n" ,  http_request_raw_buffer) ; 
@@ -52,7 +51,6 @@ main(void)
     assert(http_header) ;  
 
     char *target_file = http_get_requested_content(http_header) ;   
-    //!TODO :  Dispalay the content of directory  if no index.html  found  
    
     char *resource_content = http_read_content(target_file) ; 
      
