@@ -1,6 +1,7 @@
 #if !defined(LOCALWS)
 #define  LOCALWS
-#include <sys/cdefs.h> 
+#include <sys/cdefs.h>
+#include <stdarg.h> 
 
 //! require c11+ standard 
 #if __STDC_VERSION__ < 201112L 
@@ -10,9 +11,11 @@
 #define  __parmreq [static 1] 
 #define  __null  (__ptr_t) 0  
 #define  __bunit  1<<3 
-#define  __fignore 0              //! ignore flag 
-
+#define  __fignore 0              //! ignore flag  
 #define  nptr  __null  
+
+#define __maybe_unused (__ptr_t) 
+
 
 #define  HTTP_DIRENDER_DOCTYPE                \
   "<!DOCTYPE HTML>"                                   \
@@ -55,6 +58,12 @@ enum {
 //! Only the 3 first  GET , HOST , USER-AGENT 
 #define HTTP_REQUEST_HEADER_LINE  3 
 
+//! Needed by http_prepare                      __ 
+//! 1 -> HTTP_HEADER_RESPONSE (HTTP_RESPONCE)    |
+//! 2 -> CONTENT (html)       (!<DOCTYPE> ...)   | -> Send Type  
+//! 3 -> CRLF                 (\n\r\n\r)        _|
+#define HTTP_GLOBAL_CONTENT_DISPATCH  3   
+
 #define  HTTP_REQST_BUFF  sizeof(__ptr_t) <<  (__bunit << 1)  
 #define  PATH_MAX_LENGHT  1024  
 
@@ -94,6 +103,7 @@ char * http_read_content(char *__filename) ;
 
 int http_transmission(int  __user_agent   ,  char  content_delivry __parmreq) ; 
 
+static void  http_prepare(char __global_content  __parmreq, ...) ; 
 static char *http_list_dirent_content(char *ftype ) ;  
 
 __extern_always_inline void  hypertex_http_dom_append2list(char *item   , char * render_buffer)  
@@ -103,4 +113,5 @@ __extern_always_inline void  hypertex_http_dom_append2list(char *item   , char *
   sprintf(single_node_list, "<li><a href=\"%s\">%s</a></li>" ,item , item); 
   strcat(render_buffer , single_node_list) ; 
 }
+
 #endif 

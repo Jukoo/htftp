@@ -112,6 +112,7 @@ char *http_get_requested_content(http_reqhdr_t *http_req)
   
   if(stbuff.st_mode & S_IFREG)
     return strdup(requested_filename) ;  
+
   if (stbuff.st_mode & S_IFDIR)
   {
    //? whate i should return  
@@ -183,9 +184,15 @@ char * http_read_content(char *filename )
 int http_transmission(int  user_agent_fd   ,  char  content_delivry __parmreq) 
 {
   //!NOTE : Change it 
-  char content_buffer[HTTP_REQST_BUFF] = HTTP_HEADER_RESPONSE_OK;  
-  strcat(content_buffer,   content_delivry) ; 
-  strcat(content_buffer,  STR(CRLF))   ; 
+  char content_buffer[HTTP_REQST_BUFF] = HTTP_HEADER_RESPONSE_OK;   
+  
+  http_prepare(content_buffer,HTTP_HEADER_RESPONSE_OK
+                               , content_delivry 
+                               , STR(CRLF)) ; 
+  
+  //preappend(content_buffer , "%s%s%s", HTTP_HEADER_RESPONSE_OK ,content_delivry ,STR(CRRL))
+  //strcat(content_buffer,   content_delivry) ; 
+  //strcat(content_buffer,  STR(CRLF))   ; 
   ssize_t content_bsize  = strlen(content_buffer) ;  
   
   ssize_t s = send(user_agent_fd , content_buffer , sizeof(content_buffer) ,  __fignore);  
@@ -212,15 +219,17 @@ void clean_http_request_header(int status_code ,  void * hrd)
   hrq=nptr;  
 } 
 
-static char * http_list_dirent_content(char * dir) 
+static char * http_list_dirent_content(char  dir __parmreq)   
 {
    
+  // __reseterrno ;  
   errno = 0 ; 
   char current_dirent[PATH_MAX_LENGHT] = {0} ; 
-  getcwd(current_dirent , PATH_MAX_LENGHT) ; 
+  __maybe_unused getcwd(current_dirent , PATH_MAX_LENGHT) ;  
+
   if ( 0 != errno &&  (ERANGE & errno)) 
   {
-     warn("Total lenght Path Exceeded %s\n",   strerror(*__errno_location()))   ; 
+     warn("Total lenght Path Exceeded %s\n",   strerror(*__errno_location())); 
   }
 
   if(dir)  
@@ -233,15 +242,27 @@ static char * http_list_dirent_content(char * dir)
   char  http_dom_content[HTTP_REQST_BUFF] = HTTP_DIRENDER_DOCTYPE; 
   
   DIR *dirent  = opendir(current_dirent) ;  
-  //!TODO : check  dirent   
-  struct dirent  *dirent_scaner =  (void *) 0  ;   
+  if (!dirent) 
+  {
+     fprintf(stderr ,  "Not Able to open directory  content: %s\n", strerror(*__errno_location())) ;  
+     return  nptr ; 
+  }
+  struct dirent  *dirent_scaner = nptr  ;   
   int i = 0 ;  
-  while ( (dirent_scaner = readdir(dirent)) != (void *) 0 )   
+
+  while ( (dirent_scaner = readdir(dirent)) != nptr)    
   {  
-    //!TODO :  feed the virtual file 
+    /**  
+     * NOTE: Activate  limit 
+     * if (max_limite) // break loop  
+     * 
+     */
+    //! Apply filter on directory  list only  regular common file  
+    //! not special  files 
     if(dirent_scaner->d_type & (DT_REG | DT_DIR))
     {  
-      hypertex_http_dom_append2list(dirent_scaner->d_name, http_dom_content ) ; 
+      hypertex_http_dom_append2list(dirent_scaner->d_name, http_dom_content ) ;  
+      //!  
       if (10 == i)break ; 
       i=-~i ;
     }
@@ -251,3 +272,24 @@ static char * http_list_dirent_content(char * dir)
 
   return  strdup(http_dom_content) ;  
 }
+
+static void  http_prepare(char __global_content  __parmreq, ...)
+{
+   int max_item = HTTP_GLOBAL_CONTENT_DISPATCH  ;  
+   __gnuc_va_list ap ;
+   __builtin_va_start(ap ,max_item) ; 
+   
+   int index= ~0 ; 
+   char offset = 0 ; 
+   while (index++ < max_item ) 
+   {
+     char *item =  va_arg(ap , char*) ; 
+     memcpy((__global_content+offset) , item , strlen(item)) ; 
+     //!update the offset ; 
+     offset = strlen(__global_content) ; 
+   }
+
+   __builtin_va_end(ap) ; 
+  
+}
+
