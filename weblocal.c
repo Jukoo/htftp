@@ -11,15 +11,15 @@
 #include <assert.h> 
 #include <fcntl.h> 
 
-
 #include "htftp.h" 
+
+#define ACK_NULL nptr,nptr 
 
 int
 main(int ac , char **av , char **env)   
 {
-
+ 
   setbuf(stdout , __null) ; 
-
 
   int server_socket_fd = socket(PF_INET , SOCK_STREAM, IPPROTO_TCP ); 
   check(server_socket_fd , socket ) ;  
@@ -38,32 +38,43 @@ main(int ac , char **av , char **env)
 
   rc  = listen(server_socket_fd,  LISTEN_BACKLOG) ;  
   check(rc, listen) ;  
-  
+
+  http_reqhdr_t *http_header = nptr; 
+  char http_request_raw_buffer[HTTP_REQST_BUFF] ={ 0 }; 
   while (1)  
-  { 
-    char http_request_raw_buffer[HTTP_REQST_BUFF] ={ 0 };  
-    int agent_socket_fd  = accept(server_socket_fd , nptr, nptr ) ; 
-    recv(agent_socket_fd ,  http_request_raw_buffer ,HTTP_REQST_BUFF,0); 
+  {  
+    puts("---") ; 
+    __alias(*request_content ,  http_request_raw_buffer) ;  
+
+    bzero(request_content , HTTP_REQST_BUFF);  
+    int agent_socket_fd  = accept(server_socket_fd , ACK_NULL) ; 
+    recv(agent_socket_fd ,  http_request_raw_buffer ,HTTP_REQST_BUFF, __fignore); 
 
     printf("%s\n" ,  http_request_raw_buffer) ; 
     
-    http_reqhdr_t  * http_header = parse_http_request(http_request_raw_buffer) ;  
-    assert(http_header) ;  
+    http_reqhdr_t  * hh  = parse_http_request(http_request_raw_buffer) ;  
+    if(hh!= nptr)  
+    { 
+      
+      http_header = hh ; 
+    }
+    //assert(http_header) ;  
 
     char *target_file = http_get_requested_content(http_header) ;   
-   
-    char *resource_content = http_read_content(target_file) ; 
+    
+    bzero(request_content , HTTP_REQST_BUFF);  
+    
+    request_content =  http_read_content(target_file, http_request_raw_buffer ) ;  
      
-    printf("resource %s \n" , resource_content) ; 
-    int status = 0 ; 
-    if (resource_content) 
-      status  = http_transmission(agent_socket_fd ,  resource_content) ; 
-      
-    if(status) 
-         puts("error transmission") ;
+    printf("file : %s :: resource size :%i :   %s \n",target_file, strlen(request_content)  ,  request_content) ; 
+     
+    int status = http_transmission(agent_socket_fd ,  request_content) ;  
 
+    if (status) 
+      fprintf(stderr , "http transmission error\n") ; 
     
     close(agent_socket_fd) ; 
+    clean_http_request_header(0,  http_header)  ;    
 
   }
   shutdown(server_socket_fd , SHUT_RDWR) ; 
