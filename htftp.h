@@ -71,11 +71,14 @@ enum {
 #define  HTTP_REQST_BUFF  sizeof(__ptr_t) <<  (__bunit << 1)  
 #define  PATH_MAX_LENGHT  1024  
 
-#define  __alias(__refp , __origine)        \
-  char __refp  = __origine 
 
-#define  __alias_p(__refp, __origine)       \
-  __alias(*__refp , __origine)
+#define  statops(__ops ,  __filed, __member)({   \
+    struct stat  __sbuff;                        \
+    __ops(__filed , &__sbuff);                   \
+    __sbuff.__member ;                           \
+    }) 
+
+
 
 #define  check(__return_code , fcall)       \
   if(~0 == __return_code)                   \
@@ -89,15 +92,16 @@ typedef  struct http_request_header_t   http_reqhdr_t ;
 
 
 //! For internal use 
-static http_protocol_header_t *explode(http_protocol_header_t * __hproto,
-                                       char *__raw_data ) ;  
+static http_protocol_header_t *explode(http_protocol_header_t * __hproto, char *__restrict__ __raw_data ) ;  
 static char *http_list_dirent_content(char *ftype ,  char  *__dump) ; 
 static void  release_local_alloc(char  **_arr);
-static void  http_prepare(char *__global_content , ...) ; 
+static void  http_prepare(char *__restrict__ __global_content , ...) ; 
+
+
+
 
 http_reqhdr_t *parse_http_request( char __http_buffer __parmreq); 
 
-void perform_local_http_request(char __client_agent __parmreq); 
 void clean_http_request_header(int __status_code , void *__hrd) ; 
 
 char * http_get_requested_content(http_reqhdr_t *__hproto)  ; 
