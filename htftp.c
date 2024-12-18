@@ -111,30 +111,27 @@ char *http_get_requested_content(http_reqhdr_t *http_req)
   //!  looking for / only that mean it try  to reach "index.html"  
   if(1  == strlen(requested_filename)  &&  0x2f == (*requested_filename & 0xff) )  
   {
+    //!trying  accessing default file  here : index.html   
     if(access(http_default_hypertext , F_OK|R_OK)) 
       return nptr; 
 
     return   strdup(http_default_hypertext) ; 
   } 
  
-  //!TODO :  if is another file  different thant the index.html one , enable downloading 
   requested_filename =  (requested_filename+1) ;  
-  
-  struct stat stbuff ;  
-  if(stat(requested_filename ,  &stbuff))  return  nptr ; 
  
   ssize_t fmode =  statops(stat ,  requested_filename , st_mode) ; 
 
-  if(stbuff.st_mode & S_IFREG)
+  if(fmode & S_IFREG)
     return strdup(requested_filename) ;  
 
-  if (stbuff.st_mode & S_IFDIR)
+  if (fmode & S_IFDIR)
   {
-   //? whate i should return  
-   char encapsulate[200] = {0} ; 
-   memcpy(encapsulate ,requested_filename, strlen(requested_filename));
-   strcat(encapsulate , "#") ; 
-   return strdup(encapsulate) ; 
+   char dirent_marker[200] = {0} ; 
+   memcpy(dirent_marker ,requested_filename, strlen(requested_filename));
+   //!just  add  '#' at the end  to mark it as directory 
+   memset((dirent_marker+strlen(dirent_marker))   , 0x23 , 1 ) ;  
+   return strdup(dirent_marker) ;  
   }
 
   return nptr ;  
@@ -192,6 +189,7 @@ char * http_read_content(char *filename , char *content_dump)
   //struct   stat stbuf; 
   size_t   requested_bsize = statops(fstat , hyper_text_fd , st_size);  
   if (!requested_bsize)  requested_bsize = HTTP_REQST_BUFF ; 
+   
   size_t   rbyte =  read(hyper_text_fd ,content_buffer , requested_bsize)  ; 
 
   assert(!rbyte^(strlen(content_buffer))) ; 
@@ -264,7 +262,7 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
     printf("path -> %s \n" , current_dirent_root) ; 
   }
    
-  char  http_dom_content[HTTP_REQST_BUFF] = HTTP_DIRENDER_DOCTYPE; 
+  char  http_dom_content[HTTP_REQST_BUFF] = HTTP_DIRENDER_DOCTYPE(dir);  
   
   DIR *dirent  = opendir(current_dirent_root) ;  
   if (!dirent) 

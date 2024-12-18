@@ -19,7 +19,8 @@ int
 main(int ac , char **av , char **env)   
 {
  
-  setbuf(stdout , __null) ; 
+  //!  No buffering on stdout 
+  setvbuf(stdout, __null, _IONBF , 0) ; 
 
   int server_socket_fd = socket(PF_INET , SOCK_STREAM, IPPROTO_TCP ); 
   check(server_socket_fd , socket ) ;  
@@ -43,8 +44,6 @@ main(int ac , char **av , char **env)
   char http_request_raw_buffer[HTTP_REQST_BUFF] ={ 0 }; 
   while (1)  
   {  
-    puts("1") ;  
-    
     int agent_socket_fd  = accept(server_socket_fd , ACK_NULL) ; 
     //!TODO : Use event  file  to listen incomming data  
     explicit_bzero(http_request_raw_buffer , HTTP_REQST_BUFF) ; 
