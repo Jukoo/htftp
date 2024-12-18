@@ -1,5 +1,5 @@
-#if !defined(LOCALWS)
-#define  LOCALWS
+#if !defined(HTFTP)
+#define  HTFTP
 #include <sys/cdefs.h>
 #include <stdarg.h> 
 
@@ -18,26 +18,40 @@
 
 #define __maybe_unused (__ptr_t) 
 
+#if !defined(CND_FOR_STYLESHEET) 
+# define  CND_FOR_STYLESHEET "<link rel=\"stylesheet\"href=\"https://unpkg.com/98.css\">"
+#endif 
 
-#define  HTTP_DIRENDER_DOCTYPE                         \
+
+
+#define  HTTP_DIRENDER_DOCTYPE(title)                  \
   "<!DOCTYPE HTML>"                                    \
   "<html lang=\"en\"><head><meta charset=\"utf-8\">"   \
-  "<title>Directory listing for /</title>"             \
-  "<link rel=\"stylesheet\"href=\"https://unpkg.com/98.css\">"\
-  "</head><body><h1>Directory listing for / </h1>"     \
-  "<hr><ul>"
+  "<title>Directory listing </title>"                  \
+  CND_FOR_STYLESHEET                                   \
+  "</head><body><h3>Directory Content </h3>"           \
+  "<table>" \
+  "<tr>"\
+  "<th valign=\"top\"><img src=\"/icons/blank.gif\" alt=\"[ICO]\"></th>"\
+  "<th><a href=''>Name</a></th>"\
+  "<th><a href=''>Last modified</a></th>"\
+  "<th><a href=''>Size</a></th><th><a href=''>Description</a></th>"\
+  "</tr><tr><th colspan=\"5\"><hr></th></tr>"
 
-#define  HTTP_DIRENDER_DOCTYPE_END "</ul><hr></body></html>"
 
+//#define  HTTP_DIRENDER_DOCTYPE_END "</ul><hr></body></html>" 
+
+#define  HTTP_DIRENDER_DOCTYPE_END "<tr><th colspan=\"5\"><hr></th></tr></table></body></html>"
 #if !defined(DEFAULT_PORT) 
 # define  DEFAULT_PORT  0x2382
 #endif
 
-#define __STR(x) #x 
-#define STR(x)  __STR(x)
+#define __STR(x)  #x 
+#define STR(x) __STR(x)  
 
-#define CRLF \r\n\r\n  
-#define HTTP_HEADER_RESPONSE_OK "HTTP/1.1 200 OK" STR(CRLF)
+#define CRLF \r\n\r\n      
+#define HTTP_HEADER_RESPONSE_OK "HTTP/1.1 200 OK" STR(CRLF) 
+//TODO : add 404 NO RESOURCE FOUND  
 
 #ifndef  HTTP_HYPERTEXT_DEFAULT_FNAME 
 # define HTTP_HYPERTEXT_DEFAULT_FNAME   "index.html"  
@@ -56,7 +70,7 @@ enum {
   http_get_##__item(http_reqhdr_t *) 
 
 
-#define LISTEN_BACKLOG  100 
+#define LISTEN_BACKLOG  4 
 #define CONFIGURE_LOCAL {PF_INET, htons(DEFAULT_PORT) ,htonl(INADDR_ANY) }   
 
 //! Only the 3 first  GET , HOST , USER-AGENT 
@@ -71,11 +85,13 @@ enum {
 #define  HTTP_REQST_BUFF  sizeof(__ptr_t) <<  (__bunit << 1)  
 #define  PATH_MAX_LENGHT  1024  
 
-#define  __alias(__refp , __origine)        \
-  char __refp  = __origine 
 
-#define  __alias_p(__refp, __origine)       \
-  __alias(*__refp , __origine)
+#define  statops(__ops ,  __filed, __member)({   \
+    struct stat  __sbuff;                        \
+    __ops(__filed , &__sbuff);                   \
+    __sbuff.__member ;                           \
+    }) 
+
 
 #define  check(__return_code , fcall)       \
   if(~0 == __return_code)                   \
@@ -89,15 +105,16 @@ typedef  struct http_request_header_t   http_reqhdr_t ;
 
 
 //! For internal use 
-static http_protocol_header_t *explode(http_protocol_header_t * __hproto,
-                                       char *__raw_data ) ;  
+static http_protocol_header_t *explode(http_protocol_header_t * __hproto, char *__restrict__ __raw_data ) ;  
 static char *http_list_dirent_content(char *ftype ,  char  *__dump) ; 
 static void  release_local_alloc(char  **_arr);
-static void  http_prepare(char __global_content  __parmreq, ...) ; 
+static void  http_prepare(char *__restrict__ __global_content , ...) ; 
+
+
+
 
 http_reqhdr_t *parse_http_request( char __http_buffer __parmreq); 
 
-void perform_local_http_request(char __client_agent __parmreq); 
 void clean_http_request_header(int __status_code , void *__hrd) ; 
 
 char * http_get_requested_content(http_reqhdr_t *__hproto)  ; 
@@ -113,12 +130,21 @@ __extern_always_inline void  hypertex_http_dom_append2list(char item __parmreq,
                                                            char render_buffer __parmreq, 
                                                            char * subdirent)   
 {
-  char single_node_list[100] = {0} ; 
+  char single_node_list[1024] = "<tr><td valign=\"top\"><img src=\"/icons/folder.gif\" alt=\"[DIR]\"></td><td>";  
+  char sources[1000]={0} ; 
   if(subdirent && strlen(subdirent) >1) 
-  {
-    sprintf(single_node_list,  "<li><a href=\"%s/%s\">%s</a></li>" ,subdirent, item , item); 
+  { 
+    sprintf(sources, "<a href=\"%s/%s\">%s</a></td><td align=\"right\">2017-09-04 15:41" ,subdirent, item , item); 
   }else 
-    sprintf(single_node_list,  "<li><a href=\"%s\">%s</a></li>" ,item , item); 
+    sprintf(sources,"<a href=\"%s\">%s</a> <td align=\"right\">2017-09-04 15:41",item , item); 
+
+ 
+
+
+  strcat(sources,"</td><td align=\"right\">- </td><td>&nbsp;</td></tr>") ; 
+  strcat(single_node_list , sources) ; 
+  
+
 
   strcat(render_buffer , single_node_list) ; 
 }

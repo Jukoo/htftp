@@ -19,7 +19,8 @@ int
 main(int ac , char **av , char **env)   
 {
  
-  setbuf(stdout , __null) ; 
+  //!  No buffering on stdout 
+  setvbuf(stdout, __null, _IONBF , 0) ; 
 
   int server_socket_fd = socket(PF_INET , SOCK_STREAM, IPPROTO_TCP ); 
   check(server_socket_fd , socket ) ;  
@@ -43,38 +44,40 @@ main(int ac , char **av , char **env)
   char http_request_raw_buffer[HTTP_REQST_BUFF] ={ 0 }; 
   while (1)  
   {  
-    puts("---") ; 
-    __alias(*request_content ,  http_request_raw_buffer) ;  
-
-    bzero(request_content , HTTP_REQST_BUFF);  
     int agent_socket_fd  = accept(server_socket_fd , ACK_NULL) ; 
+    //!TODO : Use event  file  to listen incomming data  
+    explicit_bzero(http_request_raw_buffer , HTTP_REQST_BUFF) ; 
     recv(agent_socket_fd ,  http_request_raw_buffer ,HTTP_REQST_BUFF, __fignore); 
 
+     
     printf("%s\n" ,  http_request_raw_buffer) ; 
-    
-    http_reqhdr_t  * hh  = parse_http_request(http_request_raw_buffer) ;  
-    if(hh!= nptr)  
+    //!TODO : Need to be fixed  is bette way : use even polling  on socket file descriptor 
+    if(!strlen(http_request_raw_buffer)) 
     { 
-      
-      http_header = hh ; 
+      puts("request raw buffer is empty") ;
+      goto __http_restor ; 
     }
-    //assert(http_header) ;  
 
+    http_reqhdr_t  * http_header  = parse_http_request(http_request_raw_buffer) ;  
+    assert(http_header) ; 
+     
     char *target_file = http_get_requested_content(http_header) ;   
+   
+    explicit_bzero(http_request_raw_buffer , HTTP_REQST_BUFF) ; 
     
-    bzero(request_content , HTTP_REQST_BUFF);  
+    char *request_content  = http_read_content(target_file, http_request_raw_buffer ) ;  
     
-    request_content =  http_read_content(target_file, http_request_raw_buffer ) ;  
      
-    printf("file : %s :: resource size :%i :   %s \n",target_file, strlen(request_content)  ,  request_content) ; 
-     
-    int status = http_transmission(agent_socket_fd ,  request_content) ;  
-
-    if (status) 
+    if (http_transmission(agent_socket_fd , request_content)) 
       fprintf(stderr , "http transmission error\n") ; 
+   
     
-    close(agent_socket_fd) ; 
     clean_http_request_header(0,  http_header)  ;    
+    goto __http_restor ; 
+    
+__http_restor: 
+    close(agent_socket_fd) ; 
+
 
   }
   shutdown(server_socket_fd , SHUT_RDWR) ; 
