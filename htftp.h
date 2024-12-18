@@ -93,7 +93,7 @@ static http_protocol_header_t *explode(http_protocol_header_t * __hproto,
                                        char *__raw_data ) ;  
 static char *http_list_dirent_content(char *ftype ,  char  *__dump) ; 
 static void  release_local_alloc(char  **_arr);
-static void  http_prepare(char __global_content  __parmreq, ...) ; 
+static void  http_prepare(char *__global_content , ...) ; 
 
 http_reqhdr_t *parse_http_request( char __http_buffer __parmreq); 
 

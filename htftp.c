@@ -193,9 +193,11 @@ char * http_query(http_reqhdr_t *  http_req  , int section)
 char * http_read_content(char *filename , char *content_dump)  
 {
   char content_buffer[HTTP_REQST_BUFF] =  {0} ;  
+ 
   
   if(!filename)      
   {
+    puts("dirent") ;
     return http_list_dirent_content(nptr , content_dump) ;   
   } 
   //! if found "#"
@@ -224,14 +226,21 @@ char * http_read_content(char *filename , char *content_dump)
 }
 
 
-int http_transmission(int  user_agent_fd   ,  char  content_delivry __parmreq) 
+int http_transmission(int  user_agent_fd   ,  char  *content_delivry ) 
 {
   //!NOTE : Change it  
   char content_buffer[HTTP_REQST_BUFF] = {0} ; 
   
+  /*  
   http_prepare(content_buffer,HTTP_HEADER_RESPONSE_OK
                                , content_delivry 
                                , STR(CRLF)) ; 
+   */
+  strcat(content_buffer , HTTP_HEADER_RESPONSE_OK); 
+  strcat(content_buffer , content_delivry) ; 
+  strcat(content_buffer , STR(CRLF)); 
+
+  printf("-> content %s \n" ,  content_delivry) ; 
  
   ssize_t content_bsize  = strlen(content_buffer) ;  
   //!use sendfile  if the file is  not index.html   
@@ -248,7 +257,7 @@ void clean_http_request_header(int status_code ,  void * hrd)
     return ;  
   
   free(hrq->server_host); 
-  free(hrq->user_agent) ; 
+   free(hrq->user_agent) ; 
   if(&hrq->http_hproto)  
   {
     free(hrq->http_hproto.method) ; 
@@ -260,7 +269,7 @@ void clean_http_request_header(int status_code ,  void * hrd)
   hrq=nptr;  
 } 
 
-static char * http_list_dirent_content(char  dir __parmreq  , char * dumper )   
+static char * http_list_dirent_content(char  *dir  , char * dumper )   
 {
   
  
@@ -299,6 +308,7 @@ static char * http_list_dirent_content(char  dir __parmreq  , char * dumper )
   struct dirent  *dirent_scaner = nptr  ;   
   int i = 0 ;  
 
+  puts("Reading")  ; 
   while ( (dirent_scaner = readdir(dirent)) != nptr)    
   {  
     //! Apply filter on directory  list only  regular  and  common file  
@@ -312,25 +322,27 @@ static char * http_list_dirent_content(char  dir __parmreq  , char * dumper )
     }
   } 
   
-  strcat(http_dom_content,HTTP_DIRENDER_DOCTYPE_END) ; 
   
+  strcat(http_dom_content,HTTP_DIRENDER_DOCTYPE_END) ; 
   memcpy(dumper, http_dom_content , strlen(http_dom_content)) ;  
+  printf("dom -> %s \n" , http_dom_content) ; 
   return dumper; 
 
 }
 
 
-static void  http_prepare(char __global_content  __parmreq, ...)
+static void  http_prepare(char *__global_content , ...)
 {
    int max_item = HTTP_GLOBAL_CONTENT_DISPATCH  ;  
    __gnuc_va_list ap ;
    __builtin_va_start(ap ,max_item) ; 
-   
-   int index= ~0 ; 
-   char offset = 0 ; 
-   while (index++ < max_item ) 
+  
+   int index=~0 ; 
+   char offset =-~index  ; 
+   while (++index < max_item ) 
    {
-     char *item =  va_arg(ap , char*) ; 
+     char *item =  va_arg(ap , char*) ;
+     printf("item >> %s\n" , item);  
      memcpy((__global_content+offset) , item , strlen(item)) ; 
      offset = strlen(__global_content) ; 
    }
