@@ -16,31 +16,32 @@
 
 struct http_protocol_header_t 
 {
-  char *method; 
-  char *request; 
-  char *http_version;  
+  char method       _rblock(100); 
+  char request      _rblock(100);
+  char http_version _rblock(100);   
 }; 
 
 struct http_request_header_t 
 {
   http_protocol_header_t http_hproto ; 
-  char * server_host; 
-  char * user_agent;  
-};  
+  char  server_host _rblock(0xff) ;
+  char  user_agent  _rblock(0xff) ;   
+};   
 
 
 http_reqhdr_t  *parse_http_request(char http_rbuff __parmreq)  
 {
-   http_reqhdr_t  * hrq  = (http_reqhdr_t *) malloc(sizeof(*hrq)) ;  
+
    
-   assert(hrq) ;  
-
-   char *rbuff = (char *) http_rbuff, *header[HTTP_REQUEST_HEADER_LINE], 
-        *linefeed, source[HTTP_REQST_BUFF>>1] = {0}; 
+   http_reqhdr_t  *hrq = malloc(sizeof(*hrq)) ;  
+   assert(hrq) ; 
+   
+   char *rbuff = (char *) http_rbuff, header[HTTP_REQUEST_HEADER_LINE][0xff]={0} ,  
+        *linefeed=nptr, source[HTTP_REQST_BUFF>>1] = {0}; 
     
-   size_t size ,  i= 0 ;  
+   size_t size=0,  i= 0 ;  
 
-   while( (*rbuff & 0xff) && i !=  HTTP_REQUEST_HEADER_LINE )   
+   while( (*rbuff & 0xff) && i <  HTTP_REQUEST_HEADER_LINE )   
    { 
       linefeed=strchr(rbuff , 0x0a & 0xff) ; 
       
@@ -48,27 +49,21 @@ http_reqhdr_t  *parse_http_request(char http_rbuff __parmreq)
       { 
         //!just make a raw copy  and leave ... ignoring the rest  
         memcpy(source , rbuff, strlen(rbuff)) ; 
-       *(header+i) = strdup(source) ; 
+        memcpy((header+i) ,  source ,  strlen(source)) ; 
         break ; 
       }  
 
       size = linefeed - rbuff;
       memcpy(source , rbuff , size) ;
-      *(header+i) = strdup(source) ; 
+      memcpy((header+i) ,  source ,  strlen(source)) ; 
       rbuff  =  linefeed+1;   
       i=-~i ;  
    }  
    
-   if (*(header+0) == nptr)  
-    return  hrq ;   
-   
    __maybe_unused explode(&hrq->http_hproto ,  *(header+0) ); 
- 
-   hrq->server_host  = strdup(*(header+1)); 
-   hrq->user_agent   = strdup(*(header+2));  
+   memcpy(hrq->server_host ,  (char*)*(header+1) , strlen((char *)*(header+1)) )  ; 
+   memcpy(hrq->user_agent,  (char*)*(header+2) , strlen((char *)*(header+2)) ) ; 
   
-   //! cleaning 
-   release_local_alloc(header)  ; 
    return  hrq ; 
 }
 
@@ -78,101 +73,70 @@ static http_protocol_header_t  * explode(http_protocol_header_t *hproto , char *
   char chunck[HTTP_REQUEST_HEADER_LINE][0xff] = {0} ; 
 
   sscanf(raw_data , "%s  %s  %s", 
-      hproto->method = strdup((char *)(chunck+METHOD)) ,
-      hproto->request= strdup((char *)(chunck+RESOURCE)) , 
-      hproto->http_version = strdup( (char *)(chunck+VERSION))) ; 
-   
-  //!TODO : check  hproto  members  contains data ;  
+      memcpy(hproto->method,      (char *)(chunck+METHOD)   , strlen((char*)(chunck+METHOD))), 
+      memcpy(hproto->request,     (char *)(chunck+RESOURCE) , strlen((char*)(chunck+RESOURCE))), 
+      memcpy(hproto->http_version,(char *)(chunck+VERSION)  , strlen((char*)(chunck+VERSION)))
+      ); 
 
 
-  return nptr ; 
+  return nptr ;  
  
 }
 
-//! freeing resources because strdup function 
-//  do memory allocation 
-static void  release_local_alloc(char  **_arr) 
-{
-   size_t i = ~0 ; 
-   while(HTTP_REQUEST_HEADER_LINE > i++) 
-   {
-     free( *(_arr+i) ); 
-     *(_arr+i) = __null ; 
-   }
-} 
 
 //! retrieve  the requested content from http_request_header_t 
 //! GET  the requested resource  from user agent 
 char *http_get_requested_content(http_reqhdr_t *http_req)   
 {
-  char *requested_filename  = http_get_RESOURCE(http_req)  ; 
-  char *http_default_hypertext =  HTTP_HYPERTEXT_DEFAULT_FNAME  ; 
+  char *requested_filename  =  (char *) http_req->http_hproto.request   ; 
 
   //!  looking for / only that mean it try  to reach "index.html"  
-  if(1  == strlen(requested_filename)  &&  0x2f == (*requested_filename & 0xff) )  
+  if(1 == strlen(requested_filename)  &&  0x2f == (*requested_filename & 0xff) )  
   {
-    //!trying  accessing default file  here : index.html   
-    if(access(http_default_hypertext , F_OK|R_OK)) 
+    //!trying  accessing default file  ->  index.html   
+    if(access((char *) HTTP_HYPERTEXT_DEFAULT_FNAME, F_OK|R_OK)) 
       return nptr; 
 
-    return   strdup(http_default_hypertext) ; 
+    return   (char *) HTTP_HYPERTEXT_DEFAULT_FNAME; 
   } 
  
   requested_filename =  (requested_filename+1) ;  
  
   ssize_t fmode =  statops(stat ,  requested_filename , st_mode) ; 
-
-  if(fmode & S_IFREG)
-    return strdup(requested_filename) ;  
+ 
+  if(fmode & S_IFREG) 
+  {
+     //!Truncate  asked request  
+     bzero(http_req->http_hproto.request , 0xff) ; 
+     memcpy(http_req->http_hproto.request, requested_filename , strlen (requested_filename)) ; 
+     return http_req->http_hproto.request ;  
+  }
 
   if (fmode & S_IFDIR)
   {
    char dirent_marker[200] = {0} ; 
    memcpy(dirent_marker ,requested_filename, strlen(requested_filename));
    //!just  add  '#' at the end  to mark it as directory 
-   memset((dirent_marker+strlen(dirent_marker))   , 0x23 , 1 ) ;  
-   return strdup(dirent_marker) ;  
+   memset((dirent_marker+strlen(dirent_marker)), 0x23 , 1 ) ;  
+   bzero(http_req->http_hproto.request , 0xff) ; 
+   memcpy(http_req->http_hproto.request, dirent_marker, strlen(dirent_marker)) ; 
+   return  http_req->http_hproto.request ; 
   }
 
   return nptr ;  
 }
 
-char * http_get_METHOD(http_reqhdr_t * http_req) 
-{
-   return strdup(http_req->http_hproto.method) ; 
-}
-
-char * http_get_RESOURCE(http_reqhdr_t *  http_req) 
-{
-  return strdup(http_req->http_hproto.request) ; 
-}
-
-char * http_get_VERSION(http_reqhdr_t * http_req) 
-{
-  return strdup(http_req->http_hproto.http_version) ; 
-}
-
-char * http_query(http_reqhdr_t *  http_req  , int section) 
-{
-   char *data  =  strdup(http_get_METHOD(http_req))  ;   
-   if (section & VERSION) 
-     data = strdup(http_get_VERSION(http_req)) ; 
-   if (section & RESOURCE) 
-     data = strdup(http_get_RESOURCE(http_req)) ;
-
-   return  data ;  
-}
 
 //!  Read  the asked ressource 
 char * http_read_content(char *filename , char *content_dump)  
 {
   char content_buffer[HTTP_REQST_BUFF] =  {0} ;  
-  
+
   if(!filename)      
   {
     return http_list_dirent_content(nptr , content_dump) ;   
   } 
-  //! if found "#"
+   
   char *is_dir = strchr(filename , 0x23) ;  
   
   if(is_dir)
@@ -184,17 +148,22 @@ char * http_read_content(char *filename , char *content_dump)
   if (access(filename , F_OK| R_OK)) return  nptr ; 
   
   int  hyper_text_fd = open(filename , O_RDONLY) ; 
-  if (~0 ==  hyper_text_fd)  return nptr;  
+  if (~0 ==  hyper_text_fd) 
+  {
+     warnx("Not able to read  default hypertext file") ; 
+     return nptr ; 
+  }
   
   //struct   stat stbuf; 
   size_t   requested_bsize = statops(fstat , hyper_text_fd , st_size);  
   if (!requested_bsize)  requested_bsize = HTTP_REQST_BUFF ; 
    
-  size_t   rbyte =  read(hyper_text_fd ,content_buffer , requested_bsize)  ; 
+  size_t rbyte =  read(hyper_text_fd ,content_buffer , requested_bsize)  ; 
 
   assert(!rbyte^(strlen(content_buffer))) ; 
+
   close(hyper_text_fd) ; 
-  
+
   memcpy(content_dump , content_buffer ,HTTP_REQST_BUFF) ;   
   return  content_dump ; 
 }
@@ -205,6 +174,7 @@ int http_transmission(int  user_agent_fd,  char content_delivry __parmreq )
   //!NOTE : Change it  
   char content_buffer[HTTP_REQST_BUFF] = {0} ; 
   
+ 
   http_prepare(content_buffer,HTTP_HEADER_RESPONSE_OK
                                , content_delivry 
                                , STR(CRLF)) ; 
@@ -215,36 +185,14 @@ int http_transmission(int  user_agent_fd,  char content_delivry __parmreq )
   return  sbytes^sizeof(content_buffer)  ;  
   
 }
-void clean_http_request_header(int status_code ,  void * hrd)  
-{
-  http_reqhdr_t *hrq  = (http_reqhdr_t*)hrd ; 
-  
-  if (!hrq)  
-    return ;  
-  
-  free(hrq->server_host); 
-   free(hrq->user_agent) ; 
-  if(&hrq->http_hproto)  
-  {
-    free(hrq->http_hproto.method) ; 
-    free(hrq->http_hproto.request) ; 
-    free(hrq->http_hproto.http_version) ; 
-  }
-
-  free(hrq) ; 
-  hrq=nptr;  
-} 
 
 static char * http_list_dirent_content(char  *dir  , char * dumper )   
 {
   
- 
   errno = 0 ; 
-  static int  active_trace_path =0 ; 
-  static char  trace_path[PATH_MAX_LENGHT] ={0} ;  
   
   char current_dirent_root[PATH_MAX_LENGHT] = {0} ; 
-  __maybe_unused getcwd(current_dirent_root , PATH_MAX_LENGHT) ;  
+  (void *)getcwd(current_dirent_root , PATH_MAX_LENGHT) ;  
 
   if ( 0 != errno && (ERANGE & errno)) 
   {
@@ -258,8 +206,6 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
     //! NOTE : dealing with navigation between path 
     sprintf(subdir , "/%s" , dir) ; 
     strcat(current_dirent_root ,  subdir);  
-
-    printf("path -> %s \n" , current_dirent_root) ; 
   }
    
   char  http_dom_content[HTTP_REQST_BUFF] = HTTP_DIRENDER_DOCTYPE(dir);  
@@ -283,8 +229,8 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
       //!NOTE : maybe add  limit ? 
     }
   } 
-  
-  
+
+
   strcat(http_dom_content,HTTP_DIRENDER_DOCTYPE_END) ; 
   memcpy(dumper, http_dom_content , strlen(http_dom_content)) ;  
   return dumper; 
@@ -304,7 +250,7 @@ static void  http_prepare(char * restrict  __global_content , ...)
      char *item =  va_arg(ap , char*) ;
      memcpy((__global_content+strlen(__global_content)) , item , strlen(item)) ;  
    }
- 
+
    __builtin_va_end(ap) ; 
 }
 

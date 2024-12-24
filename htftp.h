@@ -22,8 +22,6 @@
 # define  CND_FOR_STYLESHEET "<link rel=\"stylesheet\"href=\"https://unpkg.com/98.css\">"
 #endif 
 
-
-
 #define  HTTP_DIRENDER_DOCTYPE(title)                  \
   "<!DOCTYPE HTML>"                                    \
   "<html lang=\"en\"><head><meta charset=\"utf-8\">"   \
@@ -85,7 +83,9 @@ enum {
 #define  HTTP_REQST_BUFF  sizeof(__ptr_t) <<  (__bunit << 1)  
 #define  PATH_MAX_LENGHT  1024  
 
+#define  _rblock(sbyte) [(sbyte)]  
 
+//!NOTE::WARNING: no control on  __ops 
 #define  statops(__ops ,  __filed, __member)({   \
     struct stat  __sbuff;                        \
     __ops(__filed , &__sbuff);                   \
@@ -110,18 +110,9 @@ static char *http_list_dirent_content(char *ftype ,  char  *__dump) ;
 static void  release_local_alloc(char  **_arr);
 static void  http_prepare(char *__restrict__ __global_content , ...) ; 
 
-
-
-
-http_reqhdr_t *parse_http_request( char __http_buffer __parmreq); 
-
-void clean_http_request_header(int __status_code , void *__hrd) ; 
+http_reqhdr_t* parse_http_request( char __http_buffer __parmreq); 
 
 char * http_get_requested_content(http_reqhdr_t *__hproto)  ; 
-char * http_get_VERSION(http_reqhdr_t *  __hproto) ; 
-char * http_get_METHOD(http_reqhdr_t *  __hproto) ; 
-char * http_get_RESOURCE(http_reqhdr_t *  __hproto) ; 
-char * http_query(http_reqhdr_t *  http_req  , int section); 
 char * http_read_content(char *__filename , char * __dump) ; 
 
 int http_transmission(int  __user_agent   ,  char  content_delivry __parmreq) ; 
