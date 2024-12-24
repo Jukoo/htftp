@@ -8,12 +8,16 @@
 #include <arpa/inet.h> 
 #include <string.h> 
 #include <sys/types.h> 
+#include <sys/stat.h> 
 #include <assert.h> 
 #include <fcntl.h> 
+#include <poll.h> 
+
 
 #include "htftp.h" 
 
-#define ACK_NULL nptr,nptr 
+//! NO acknowlegment 
+#define NOACK nptr,nptr 
 
 int
 main(int ac , char **av , char **env)   
@@ -41,45 +45,59 @@ main(int ac , char **av , char **env)
   check(rc, listen) ;  
 
   http_reqhdr_t *http_header = nptr; 
-  char http_request_raw_buffer[HTTP_REQST_BUFF] ={ 0 }; 
+  char http_request_raw_buffer[HTTP_REQST_BUFF] ={ 0 };   
   while (1)  
   {  
-    int agent_socket_fd  = accept(server_socket_fd , ACK_NULL) ; 
-    //!TODO : Use event  file  to listen incomming data  
-    explicit_bzero(http_request_raw_buffer , HTTP_REQST_BUFF) ; 
-    recv(agent_socket_fd ,  http_request_raw_buffer ,HTTP_REQST_BUFF, __fignore); 
-
-     
-    printf("%s\n" ,  http_request_raw_buffer) ; 
-    //!TODO : Need to be fixed  is bette way : use even polling  on socket file descriptor 
-    if(!strlen(http_request_raw_buffer)) 
-    { 
-      puts("request raw buffer is empty") ;
-      goto __http_restor ; 
+    bzero(http_request_raw_buffer , HTTP_REQST_BUFF) ;  
+    
+    struct pollfd  sockpoll= { .fd=accept(server_socket_fd , NOACK) ,  POLLIN, 0}; 
+   
+    if (~0 == sockpoll.fd) 
+    {
+       warnx("Poll init socket ACK  issue") ; 
+       goto __http_restor ;  
     }
 
-    http_reqhdr_t  * http_header  = parse_http_request(http_request_raw_buffer) ;  
+    int  sockpoll_ready =  poll(&sockpoll ,1, ~0 /* Infinit  waiting  */); 
+    
+    if (~0 == sockpoll_ready)
+    {
+      warn("socket polling error %s \n" ,  strerror(*__errno_location())) ; 
+      goto __http_restor ; 
+    } 
+    
+    /*Listen only on incomming data  */
+    if (sockpoll.revents & POLLIN) 
+    { 
+      ssize_t  rbytes =  recv(sockpoll.fd ,  http_request_raw_buffer ,HTTP_REQST_BUFF, __fignore); 
+      if (!rbytes /* No data  */) 
+      {
+        goto __http_restor ; 
+      } 
+      printf("%s\n" ,  http_request_raw_buffer) ; 
+    }
+
+    http_header  = parse_http_request(http_request_raw_buffer) ;  
     assert(http_header) ; 
      
     char *target_file = http_get_requested_content(http_header) ;   
-   
-    explicit_bzero(http_request_raw_buffer , HTTP_REQST_BUFF) ; 
     
+    bzero(http_request_raw_buffer , HTTP_REQST_BUFF) ; 
     char *request_content  = http_read_content(target_file, http_request_raw_buffer ) ;  
-    
      
-    if (http_transmission(agent_socket_fd , request_content)) 
-      fprintf(stderr , "http transmission error\n") ; 
-   
-    
-    clean_http_request_header(0,  http_header)  ;    
-    goto __http_restor ; 
-    
+    if (http_transmission(sockpoll.fd , request_content)) 
+    {
+      warnx("http transmission error") ; 
+    }
+
+
+    if(http_header!= nptr)
+      free(http_header) , http_header = 0 ; 
+
 __http_restor: 
-    close(agent_socket_fd) ; 
-
-
+    close(sockpoll.fd) ; 
   }
+
   shutdown(server_socket_fd , SHUT_RDWR) ; 
   close(server_socket_fd) ; 
 
