@@ -72,6 +72,7 @@ main(int ac , char **av , char **env)
       ssize_t  rbytes =  recv(sockpoll.fd ,  http_request_raw_buffer ,HTTP_REQST_BUFF, __fignore); 
       if (!rbytes /* No data  */) 
       {
+        //NOTE: continue... 
         goto __http_restor ; 
       } 
       printf("%s\n" ,  http_request_raw_buffer) ; 
@@ -95,7 +96,7 @@ main(int ac , char **av , char **env)
       free(http_header) , http_header = 0 ; 
 
 __http_restor: 
-    close(sockpoll.fd) ; 
+    close(sockpoll.fd) ;  
   }
 
   shutdown(server_socket_fd , SHUT_RDWR) ; 

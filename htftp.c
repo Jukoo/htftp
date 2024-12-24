@@ -228,8 +228,10 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
       hypertex_http_dom_append2list(dirent_scaner->d_name, http_dom_content , subdir) ;  
       //!NOTE : maybe add  limit ? 
     }
-  } 
+  }
 
+  if(closedir(dirent))
+    warnx("Error while closing direntory entry  of %s \n" , current_dirent_root) ; 
 
   strcat(http_dom_content,HTTP_DIRENDER_DOCTYPE_END) ; 
   memcpy(dumper, http_dom_content , strlen(http_dom_content)) ;  
