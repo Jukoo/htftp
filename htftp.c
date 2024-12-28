@@ -28,6 +28,7 @@ struct http_request_header_t
   char  user_agent  _rblock(0xff) ;   
 };   
 
+static int allow_previous_navigation = 0; 
 
 http_reqhdr_t  *parse_http_request(char http_rbuff __parmreq)  
 {
@@ -100,14 +101,14 @@ char *http_get_requested_content(http_reqhdr_t *http_req)
   } 
  
   requested_filename =  (requested_filename+1) ;  
- 
-  ssize_t fmode =  statops(stat ,  requested_filename , st_mode) ; 
- 
+  
+  ssize_t fmode =  statops(stat ,  requested_filename , st_mode) ;   
+  
   if(fmode & S_IFREG) 
   {
      //!Truncate  asked request  
-     bzero(http_req->http_hproto.request , 0xff) ; 
-     memcpy(http_req->http_hproto.request, requested_filename , strlen (requested_filename)) ; 
+     memcpy(http_req->http_hproto.request, requested_filename , strlen(requested_filename)) ;  
+     bzero((http_req->http_hproto.request+strlen(requested_filename)),strlen(requested_filename)) ; 
      return http_req->http_hproto.request ;  
   }
 
@@ -129,8 +130,8 @@ char *http_get_requested_content(http_reqhdr_t *http_req)
 //!  Read  the asked ressource 
 char * http_read_content(char *filename , char *content_dump)  
 {
-  char content_buffer[HTTP_REQST_BUFF] =  {0} ;  
-
+  char content_buffer[HTTP_REQST_BUFF] =  {0} ; 
+   
   if(!filename)      
   {
     return http_list_dirent_content(nptr , content_dump) ;   
@@ -173,11 +174,9 @@ int http_transmission(int  user_agent_fd,  char content_delivry __parmreq )
   //!NOTE : Change it  
   char content_buffer[HTTP_REQST_BUFF] = {0} ; 
   
- 
   http_prepare(content_buffer,HTTP_HEADER_RESPONSE_OK
                                , content_delivry 
                                , STR(CRLF)) ; 
- 
   ssize_t content_bsize  = strlen(content_buffer) ;  
   //!use sendfile  if the file is  not index.html   
   ssize_t sbytes= send(user_agent_fd , content_buffer , sizeof(content_buffer) ,0);  
@@ -204,7 +203,12 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
   { 
     //! NOTE : dealing with navigation between path 
     sprintf(subdir , "/%s" , dir) ; 
-    strcat(current_dirent_root ,  subdir);  
+    strcat(current_dirent_root ,  subdir);   
+    allow_previous_navigation=1;  
+  }else  
+  {
+     //! Do  not show previous   link  
+     allow_previous_navigation=0; 
   }
    
   char  http_dom_content[HTTP_REQST_BUFF] = HTTP_DIRENDER_DOCTYPE(dir);  
@@ -220,11 +224,15 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
 
   while ( (dirent_scaner = readdir(dirent)) != nptr)    
   {  
+
+    if(1 == strlen(dirent_scaner->d_name) && 0x2e == (*dirent_scaner->d_name) & 0xff)  
+      continue;  
+    
     //! Apply filter on directory  list only  regular  and  common file  
     //! Special  file are note allowed  
-    if(dirent_scaner->d_type & (DT_REG | DT_DIR))
+    if(dirent_scaner->d_type & (DT_REG | DT_DIR))  
     {  
-      hypertex_http_dom_append2list(dirent_scaner->d_name, http_dom_content , subdir) ;  
+      hypertex_http_dom_append2list(dirent_scaner->d_name, http_dom_content , subdir , allow_previous_navigation) ;  
       //!NOTE : maybe add  limit ? 
     }
   }

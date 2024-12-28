@@ -36,9 +36,10 @@
   "</tr><tr><th colspan=\"5\"><hr></th></tr>"
 
 
-//#define  HTTP_DIRENDER_DOCTYPE_END "</ul><hr></body></html>" 
-
 #define  HTTP_DIRENDER_DOCTYPE_END "<tr><th colspan=\"5\"><hr></th></tr></table></body></html>"
+
+#define  PREVIOUS ".."
+
 #if !defined(DEFAULT_PORT) 
 # define  DEFAULT_PORT  0x2382
 #endif
@@ -118,19 +119,33 @@ int http_transmission(int  __user_agent   ,  char  content_delivry __parmreq) ;
 
 __extern_always_inline void  hypertex_http_dom_append2list(char item __parmreq,
                                                            char render_buffer __parmreq, 
-                                                           char * subdirent)   
+                                                           char * subdirent,
+                                                           int  show_previous)   
 {
   char single_node_list[1024] = "<tr><td valign=\"top\"><img src=\"/icons/folder.gif\" alt=\"[DIR]\"></td><td>";  
   char sources[1000]={0} ; 
+  //! Previous navigation 
+ 
+ 
+  if(0==show_previous  &&  strstr(item, PREVIOUS)) return  ;  
   if(subdirent && strlen(subdirent) >1) 
-  { 
+  {
+
+    if(show_previous) 
+    {
+      if(strstr(item, PREVIOUS))  
+      {
+        sprintf(sources, "<a href=\"%s/%s\">%s</a></td><td align=\"right\">2017-09-04 15:41" ,subdirent, item , "<< Previous"); 
+        goto  append_td ; 
+      } 
+    }
     sprintf(sources, "<a href=\"%s/%s\">%s</a></td><td align=\"right\">2017-09-04 15:41" ,subdirent, item , item); 
+
   }else 
     sprintf(sources,"<a href=\"%s\">%s</a> <td align=\"right\">2017-09-04 15:41",item , item); 
 
  
-
-
+append_td:
   strcat(sources,"</td><td align=\"right\">- </td><td>&nbsp;</td></tr>") ; 
   strcat(single_node_list , sources) ; 
   
