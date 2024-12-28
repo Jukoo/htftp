@@ -13,7 +13,6 @@
 #define  __parmreq [static 1] 
 #define  __null  (__ptr_t) 0  
 #define  __bunit  1<<3 
-#define  __fignore 0              //! ignore flag  
 #define  nptr  __null  
 
 #define __maybe_unused (__ptr_t) 

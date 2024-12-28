@@ -31,7 +31,6 @@ struct http_request_header_t
 
 http_reqhdr_t  *parse_http_request(char http_rbuff __parmreq)  
 {
-
    
    http_reqhdr_t  *hrq = malloc(sizeof(*hrq)) ;  
    assert(hrq) ; 
@@ -181,7 +180,7 @@ int http_transmission(int  user_agent_fd,  char content_delivry __parmreq )
  
   ssize_t content_bsize  = strlen(content_buffer) ;  
   //!use sendfile  if the file is  not index.html   
-  ssize_t sbytes= send(user_agent_fd , content_buffer , sizeof(content_buffer) ,  __fignore);  
+  ssize_t sbytes= send(user_agent_fd , content_buffer , sizeof(content_buffer) ,0);  
   return  sbytes^sizeof(content_buffer)  ;  
   
 }
