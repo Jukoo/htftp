@@ -10,6 +10,7 @@
 #include <sys/socket.h> 
 #include <dirent.h> 
 #include <sys/stat.h> 
+#include <time.h> 
 
 
 #include "htftp.h"
@@ -231,7 +232,8 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
     //! Apply filter on directory  list only  regular  and  common file  
     //! Special  file are note allowed  
     if(dirent_scaner->d_type & (DT_REG | DT_DIR))  
-    {  
+    { 
+      
       hypertex_http_dom_append2list(dirent_scaner->d_name, http_dom_content , subdir , allow_previous_navigation) ;  
       //!NOTE : maybe add  limit ? 
     }
@@ -246,7 +248,45 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
 
 }
 
+fobject_t* file_detail(fobject_t * fobj  , char * file_item, int timefmt_opt) 
+{
 
+   fobj->fsize = statops(stat , file_item,st_size) ; //!TODO : make it human readable  
+   fobj->ftime = statops(stat,file_item , st_mtime) ; 
+ 
+   //!When the 2 flags  are used the priority goes for  TIME_NUM  
+   if  ((timefmt_opt & TIME_ASC) && (timefmt_opt & TIME_NUM))
+     timefmt_opt&=~TIME_ASC ;   
+
+   if(timefmt_opt & TIME_ASC ) 
+   {
+     struct  tm * lctime = nptr ; 
+     lctime = localtime(&fobj->ftime) ;
+     if (!lctime)   
+     {
+       warnx("Error occured while formation  time location") ; 
+       
+     }
+     
+     fobj->hr_time = asctime(lctime) ;  
+   }
+  
+   if(timefmt_opt & TIME_NUM)  
+   {
+     char tbuff[100] = {0} ; 
+     size_t fstatus =  strftime(tbuff,100 , "%F %T %P" ,  localtime(&fobj->ftime)) ; 
+     if(fstatus ^ strlen(tbuff)) 
+     {
+       warnx("Error occured while formation  time location") ; 
+     }
+     fobj->hr_time = strdup(tbuff) ; 
+   }
+   
+   printf("realtime -> %s : %s\n" ,  file_item, fobj->hr_time) ;  
+
+   return  fobj ; 
+   
+}
 static void  http_prepare(char * restrict  __global_content , ...)
 {
    int max_item = HTTP_GLOBAL_CONTENT_DISPATCH  ;  
