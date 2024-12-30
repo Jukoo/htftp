@@ -13,7 +13,6 @@
 #define  __parmreq [static 1] 
 #define  __null  (__ptr_t) 0  
 #define  __bunit  1<<3 
-#define  __fignore 0              //! ignore flag  
 #define  nptr  __null  
 
 #define __maybe_unused (__ptr_t) 
@@ -25,21 +24,31 @@
 #define  HTTP_DIRENDER_DOCTYPE(title)                  \
   "<!DOCTYPE HTML>"                                    \
   "<html lang=\"en\"><head><meta charset=\"utf-8\">"   \
+  "<meta name=\"theme-color\" content=\"#352e9a\">"    \
+  "<link rel=\"shortcut icon\" alt=\"&#128506;\" >"               \
   "<title>Directory listing </title>"                  \
   CND_FOR_STYLESHEET                                   \
   "</head><body><h3>Directory Content </h3>"           \
   "<table>" \
   "<tr>"\
-  "<th valign=\"top\"><img src=\"/icons/blank.gif\" alt=\"[ICO]\"></th>"\
+  "<th valign=\"top\"><img src=\"/icons/blank.gif\" alt=\"&#128506;\"></th>"\
   "<th><a href=''>Name</a></th>"\
   "<th><a href=''>Last modified</a></th>"\
   "<th><a href=''>Size</a></th><th><a href=''>Description</a></th>"\
   "</tr><tr><th colspan=\"5\"><hr></th></tr>"
 
 
-//#define  HTTP_DIRENDER_DOCTYPE_END "</ul><hr></body></html>" 
-
 #define  HTTP_DIRENDER_DOCTYPE_END "<tr><th colspan=\"5\"><hr></th></tr></table></body></html>"
+
+//!Miscelleaneous  html  unicode symbole
+//!Source : https://unicodeplus.com/ 
+#define HTML_UFOLDER "&#128193;"
+#define HTML_UDOC    "&#128462;"
+#define HTML_UBACK   "&#129192;" 
+
+#define  PREVIOUS ".." 
+
+
 #if !defined(DEFAULT_PORT) 
 # define  DEFAULT_PORT  0x2382
 #endif
@@ -102,6 +111,17 @@ enum {
 
 typedef  struct http_protocol_header_t  http_protocol_header_t ; 
 typedef  struct http_request_header_t   http_reqhdr_t ;   
+typedef  struct fobject_t 
+{
+   size_t fsize ; 
+   time_t ftime ;  
+   union{  
+     char *hr_time;   //!  human readable  time 
+   };
+} fobject_t ; 
+
+#define TIME_ASC 1    //!  time read format  ascii mode    
+#define TIME_NUM 2    //!  time read format  numerical mode 
 
 
 //! For internal use 
@@ -117,21 +137,60 @@ char * http_read_content(char *__filename , char * __dump) ;
 
 int http_transmission(int  __user_agent   ,  char  content_delivry __parmreq) ; 
 
+fobject_t * file_detail(fobject_t *  __fobj ,  char *__fitem , int __tfmtopt ) ;
+
 __extern_always_inline void  hypertex_http_dom_append2list(char item __parmreq,
                                                            char render_buffer __parmreq, 
-                                                           char * subdirent)   
+                                                           char * subdirent,
+                                                           int  show_previous)   
 {
-  char single_node_list[1024] = "<tr><td valign=\"top\"><img src=\"/icons/folder.gif\" alt=\"[DIR]\"></td><td>";  
-  char sources[1000]={0} ; 
+  //!TODO : get item size  and last modified 
+  fobject_t fobj ; 
+  char single_node_list[4096] = "<tr><td valign=\"top\">"; 
+  char sources[4096]={0} ; 
+  //! Previous navigation 
+ 
+ 
+  if(0==show_previous  &&  strstr(item, PREVIOUS)) return  ;  
   if(subdirent && strlen(subdirent) >1) 
-  { 
-    sprintf(sources, "<a href=\"%s/%s\">%s</a></td><td align=\"right\">2017-09-04 15:41" ,subdirent, item , item); 
-  }else 
-    sprintf(sources,"<a href=\"%s\">%s</a> <td align=\"right\">2017-09-04 15:41",item , item); 
+  {
+    char path[100]={0} ;
+    sprintf(path,  "%s/%s" , subdirent, item) ; 
+    file_detail(&fobj, path, TIME_NUM ) ; 
+  
+    if(show_previous) 
+    {
+      if(!strcmp(item ,  PREVIOUS))  
+      {
+        //!TODO :  Put previous  navigation on top 
+        //sprintf(sources, "<a href=\"%s\">%s</a></td><td align=\"right\">%s" ,path, "&#10510;", fobj.hr_time); 
+        sprintf(sources, "<img alt=\"&#129192;\"></td><td><a href=\"%s\">%s/</a></td><td align=\"right\">%s" ,path, "&#129192;", fobj.hr_time); 
+        goto  append_td ; 
+      } 
+    }  
+    
+    size_t type  = statops(stat , path,  st_mode) ; 
+    if (type  & S_IFREG) 
+      sprintf(sources, "<img alt=\"&#128462;\"></td><td><a href=\"%s\">%s</a></td><td align=\"right\">%s" ,path , item, fobj.hr_time); 
+    else 
+      sprintf(sources, "<img alt=\"&#128193;\"></td><td><a href=\"%s\">%s/</a></td><td align=\"right\">%s" ,path , item, fobj.hr_time); 
+
+  }else  
+  {
+    file_detail(&fobj , item , TIME_NUM ) ; 
+    size_t type  = statops(stat , item,  st_mode) ; 
+    if (type  & S_IFREG) 
+      sprintf(sources, "<img alt=\"&#128462;\"></td><td><a href=\"%s\">%s</a></td><td align=\"right\">%s" ,item , item, fobj.hr_time); 
+    else 
+      sprintf(sources, "<img alt=\"&#128193;\"></td><td><a href=\"%s\">%s/</a></td><td align=\"right\">%s" ,item , item, fobj.hr_time); 
+
+
+    //sprintf(sources, "<img alt=\"&#128462;\"></td><td><a href=\"%s\">%s</a></td><td align=\"right\">%s" ,item, item, fobj.hr_time); 
+    //sprintf(sources,"<a href=\"%s\">%s</a> <td align=\"right\">%s",item , item , fobj.hr_time); 
+  }
 
  
-
-
+append_td:
   strcat(sources,"</td><td align=\"right\">- </td><td>&nbsp;</td></tr>") ; 
   strcat(single_node_list , sources) ; 
   

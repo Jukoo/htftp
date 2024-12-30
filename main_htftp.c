@@ -59,7 +59,8 @@ main(int ac , char **av , char **env)
     }
 
     int  sockpoll_ready =  poll(&sockpoll ,1, ~0 /* Infinit  waiting  */); 
-    
+   
+    //!Ignoring 0  return  by poll : see man page for more info 
     if (~0 == sockpoll_ready)
     {
       warn("socket polling error %s \n" ,  strerror(*__errno_location())) ; 
@@ -69,11 +70,10 @@ main(int ac , char **av , char **env)
     /*Listen only on incomming data  */
     if (sockpoll.revents & POLLIN) 
     { 
-      ssize_t  rbytes =  recv(sockpoll.fd ,  http_request_raw_buffer ,HTTP_REQST_BUFF, __fignore); 
+      ssize_t  rbytes =  recv(sockpoll.fd ,  http_request_raw_buffer ,HTTP_REQST_BUFF, 0); 
       if (!rbytes /* No data  */) 
-      {
         goto __http_restor ; 
-      } 
+      
       printf("%s\n" ,  http_request_raw_buffer) ; 
     }
 
@@ -86,16 +86,14 @@ main(int ac , char **av , char **env)
     char *request_content  = http_read_content(target_file, http_request_raw_buffer ) ;  
      
     if (http_transmission(sockpoll.fd , request_content)) 
-    {
       warnx("http transmission error") ; 
-    }
 
 
-    if(http_header!= nptr)
+    if(http_header)
       free(http_header) , http_header = 0 ; 
 
 __http_restor: 
-    close(sockpoll.fd) ; 
+    close(sockpoll.fd) ;  
   }
 
   shutdown(server_socket_fd , SHUT_RDWR) ; 

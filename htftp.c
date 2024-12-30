@@ -10,6 +10,7 @@
 #include <sys/socket.h> 
 #include <dirent.h> 
 #include <sys/stat.h> 
+#include <time.h> 
 
 
 #include "htftp.h"
@@ -28,10 +29,10 @@ struct http_request_header_t
   char  user_agent  _rblock(0xff) ;   
 };   
 
+static int allow_previous_navigation = 0; 
 
 http_reqhdr_t  *parse_http_request(char http_rbuff __parmreq)  
 {
-
    
    http_reqhdr_t  *hrq = malloc(sizeof(*hrq)) ;  
    assert(hrq) ; 
@@ -101,14 +102,14 @@ char *http_get_requested_content(http_reqhdr_t *http_req)
   } 
  
   requested_filename =  (requested_filename+1) ;  
- 
-  ssize_t fmode =  statops(stat ,  requested_filename , st_mode) ; 
- 
+  
+  ssize_t fmode =  statops(stat ,  requested_filename , st_mode) ;   
+  
   if(fmode & S_IFREG) 
   {
      //!Truncate  asked request  
-     bzero(http_req->http_hproto.request , 0xff) ; 
-     memcpy(http_req->http_hproto.request, requested_filename , strlen (requested_filename)) ; 
+     memcpy(http_req->http_hproto.request, requested_filename , strlen(requested_filename)) ;  
+     bzero((http_req->http_hproto.request+strlen(requested_filename)),strlen(requested_filename)) ; 
      return http_req->http_hproto.request ;  
   }
 
@@ -130,8 +131,8 @@ char *http_get_requested_content(http_reqhdr_t *http_req)
 //!  Read  the asked ressource 
 char * http_read_content(char *filename , char *content_dump)  
 {
-  char content_buffer[HTTP_REQST_BUFF] =  {0} ;  
-
+  char content_buffer[HTTP_REQST_BUFF] =  {0} ; 
+   
   if(!filename)      
   {
     return http_list_dirent_content(nptr , content_dump) ;   
@@ -174,14 +175,12 @@ int http_transmission(int  user_agent_fd,  char content_delivry __parmreq )
   //!NOTE : Change it  
   char content_buffer[HTTP_REQST_BUFF] = {0} ; 
   
- 
   http_prepare(content_buffer,HTTP_HEADER_RESPONSE_OK
                                , content_delivry 
                                , STR(CRLF)) ; 
- 
   ssize_t content_bsize  = strlen(content_buffer) ;  
   //!use sendfile  if the file is  not index.html   
-  ssize_t sbytes= send(user_agent_fd , content_buffer , sizeof(content_buffer) ,  __fignore);  
+  ssize_t sbytes= send(user_agent_fd , content_buffer , sizeof(content_buffer) ,0);  
   return  sbytes^sizeof(content_buffer)  ;  
   
 }
@@ -205,7 +204,12 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
   { 
     //! NOTE : dealing with navigation between path 
     sprintf(subdir , "/%s" , dir) ; 
-    strcat(current_dirent_root ,  subdir);  
+    strcat(current_dirent_root ,  subdir);   
+    allow_previous_navigation=1;  
+  }else  
+  {
+     //! Do  not show previous   link  
+     allow_previous_navigation=0; 
   }
    
   char  http_dom_content[HTTP_REQST_BUFF] = HTTP_DIRENDER_DOCTYPE(dir);  
@@ -221,15 +225,22 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
 
   while ( (dirent_scaner = readdir(dirent)) != nptr)    
   {  
+
+    if(1 == strlen(dirent_scaner->d_name) && 0x2e == (*dirent_scaner->d_name) & 0xff)  
+      continue;  
+    
     //! Apply filter on directory  list only  regular  and  common file  
     //! Special  file are note allowed  
-    if(dirent_scaner->d_type & (DT_REG | DT_DIR))
-    {  
-      hypertex_http_dom_append2list(dirent_scaner->d_name, http_dom_content , subdir) ;  
+    if(dirent_scaner->d_type & (DT_REG | DT_DIR))  
+    { 
+      
+      hypertex_http_dom_append2list(dirent_scaner->d_name, http_dom_content , subdir , allow_previous_navigation) ;  
       //!NOTE : maybe add  limit ? 
     }
-  } 
+  }
 
+  if(closedir(dirent))
+    warnx("Error while closing direntory entry  of %s \n" , current_dirent_root) ; 
 
   strcat(http_dom_content,HTTP_DIRENDER_DOCTYPE_END) ; 
   memcpy(dumper, http_dom_content , strlen(http_dom_content)) ;  
@@ -237,7 +248,45 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
 
 }
 
+fobject_t* file_detail(fobject_t * fobj  , char * file_item, int timefmt_opt) 
+{
 
+   fobj->fsize = statops(stat , file_item,st_size) ; //!TODO : make it human readable  
+   fobj->ftime = statops(stat,file_item , st_mtime) ; 
+ 
+   //!When the 2 flags  are used the priority goes for  TIME_NUM  
+   if  ((timefmt_opt & TIME_ASC) && (timefmt_opt & TIME_NUM))
+     timefmt_opt&=~TIME_ASC ;   
+
+   if(timefmt_opt & TIME_ASC ) 
+   {
+     struct  tm * lctime = nptr ; 
+     lctime = localtime(&fobj->ftime) ;
+     if (!lctime)   
+     {
+       warnx("Error occured while formation  time location") ; 
+       
+     }
+     
+     fobj->hr_time = asctime(lctime) ;  
+   }
+  
+   if(timefmt_opt & TIME_NUM)  
+   {
+     char tbuff[100] = {0} ; 
+     size_t fstatus =  strftime(tbuff,100 , "%F %T %P" ,  localtime(&fobj->ftime)) ; 
+     if(fstatus ^ strlen(tbuff)) 
+     {
+       warnx("Error occured while formation  time location") ; 
+     }
+     fobj->hr_time = strdup(tbuff) ; 
+   }
+   
+   printf("realtime -> %s : %s\n" ,  file_item, fobj->hr_time) ;  
+
+   return  fobj ; 
+   
+}
 static void  http_prepare(char * restrict  __global_content , ...)
 {
    int max_item = HTTP_GLOBAL_CONTENT_DISPATCH  ;  
