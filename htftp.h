@@ -110,14 +110,17 @@ enum {
 #define  SA  struct sockaddr 
 
 typedef  struct http_protocol_header_t  http_protocol_header_t ; 
-typedef  struct http_request_header_t   http_reqhdr_t ;   
+typedef  struct http_request_header_t   http_reqhdr_t ; 
+
 typedef  struct fobject_t 
 {
    size_t fsize ; 
    time_t ftime ;  
+   char fitem _rblock(100) ; 
    union{  
      char *hr_time;   //!  human readable  time 
    };
+  
 } fobject_t ; 
 
 #define TIME_ASC 1    //!  time read format  ascii mode    
@@ -152,10 +155,13 @@ __extern_always_inline void  hypertex_http_dom_append2list(char item __parmreq,
  
  
   if(0==show_previous  &&  strstr(item, PREVIOUS)) return  ;  
-  if(subdirent && strlen(subdirent) >1) 
+  if(1 < strlen(subdirent) &&  subdirent) 
   {
-    char path[100]={0} ;
-    sprintf(path,  "%s/%s" , subdirent, item) ; 
+    char path[100]={0} ; 
+    //!NOTE: Just a quick  fix : should be optimize for later  cheers.....  
+    if(*(subdirent+(strlen(subdirent)+~0))  == '/') 
+      *(subdirent+strlen(subdirent)+~0)=0; 
+
     file_detail(&fobj, path, TIME_NUM ) ; 
   
     if(show_previous) 
@@ -164,25 +170,32 @@ __extern_always_inline void  hypertex_http_dom_append2list(char item __parmreq,
       {
         //!TODO :  Put previous  navigation on top 
         //sprintf(sources, "<a href=\"%s\">%s</a></td><td align=\"right\">%s" ,path, "&#10510;", fobj.hr_time); 
-        sprintf(sources, "<img alt=\"&#129192;\"></td><td><a href=\"%s\">%s/</a></td><td align=\"right\">%s" ,path, "&#129192;", fobj.hr_time); 
+        sprintf(sources, "<img alt=\"&#129192;\"></td><td><a href=\"%s\">%s</a></td><td align=\"right\">%s" ,path, "&#129192;", fobj.hr_time); 
         goto  append_td ; 
       } 
     }  
     
     size_t type  = statops(stat , path,  st_mode) ; 
     if (type  & S_IFREG) 
+    {
       sprintf(sources, "<img alt=\"&#128462;\"></td><td><a href=\"%s\">%s</a></td><td align=\"right\">%s" ,path , item, fobj.hr_time); 
-    else 
+       
+    }else{
       sprintf(sources, "<img alt=\"&#128193;\"></td><td><a href=\"%s\">%s/</a></td><td align=\"right\">%s" ,path , item, fobj.hr_time); 
+       
+    }
 
-  }else  
+  } 
+  if(0 == strlen(subdirent))
   {
     file_detail(&fobj , item , TIME_NUM ) ; 
     size_t type  = statops(stat , item,  st_mode) ; 
-    if (type  & S_IFREG) 
+    if (type  & S_IFREG)
+    { 
       sprintf(sources, "<img alt=\"&#128462;\"></td><td><a href=\"%s\">%s</a></td><td align=\"right\">%s" ,item , item, fobj.hr_time); 
-    else 
-      sprintf(sources, "<img alt=\"&#128193;\"></td><td><a href=\"%s\">%s/</a></td><td align=\"right\">%s" ,item , item, fobj.hr_time); 
+        
+    }else 
+      sprintf(sources, "<img alt=\"&#128193;\"></td><td><a href=\"%s\">%s</a></td><td align=\"right\">%s" ,item , item, fobj.hr_time); 
 
 
     //sprintf(sources, "<img alt=\"&#128462;\"></td><td><a href=\"%s\">%s</a></td><td align=\"right\">%s" ,item, item, fobj.hr_time); 
