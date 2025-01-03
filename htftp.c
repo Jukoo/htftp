@@ -282,7 +282,7 @@ fobject_t* file_detail(fobject_t * fobj  , char * file_item, int timefmt_opt)
      fobj->hr_time = strdup(tbuff) ; 
    }
    
-   printf("realtime -> %s : %s\n" ,  file_item, fobj->hr_time) ;  
+   printf("realtime -> %s : %s -> size %i\n" ,  file_item, fobj->hr_time,fobj->fsize) ;  
 
    return  fobj ; 
    
