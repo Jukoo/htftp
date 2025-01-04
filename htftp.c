@@ -29,7 +29,6 @@ struct http_request_header_t
   char  user_agent  _rblock(0xff) ;   
 };   
 
-static int allow_previous_navigation = 0; 
 
 http_reqhdr_t  *parse_http_request(char http_rbuff __parmreq)  
 {
@@ -189,7 +188,7 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
 {
   
   errno = 0 ; 
-  
+  int allow_previous_navigation = 0; 
   char current_dirent_root[PATH_MAX_LENGHT] = {0} ; 
   (void *)getcwd(current_dirent_root , PATH_MAX_LENGHT) ;  
 
@@ -199,6 +198,7 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
      return nptr; 
   }
  
+  char  http_dom_content[HTTP_REQST_BUFF] = {0};  
   char subdir[PATH_MAX_LENGHT] = {0} ; 
   if(dir)  
   { 
@@ -212,8 +212,8 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
      allow_previous_navigation=0; 
   }
    
-  char  http_dom_content[HTTP_REQST_BUFF] = HTTP_DIRENDER_DOCTYPE(dir);  
   
+  DOM_TITLE(!dir? "/": dir ,  http_dom_content) ; 
   DIR *dirent  = opendir(current_dirent_root) ;  
   if (!dirent) 
   {

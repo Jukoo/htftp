@@ -21,14 +21,14 @@
 # define  CND_FOR_STYLESHEET "https://unpkg.com/98.css" 
 #endif 
 
-#define  HTTP_DIRENDER_DOCTYPE(title)                   \
+#define  HTTP_DIRENDER_DOCTYPE                          \
   "<!DOCTYPE HTML>"                                     \
   "<html lang=\"en\"><head><meta charset=\"utf-8\">"    \
   "<meta name=\"theme-color\" content=\"#352e9a\">"     \
   "<link rel=\"shortcut icon\" alt=\"&#128506;\" >"     \
   "<title>Directory listing </title>"                   \
   "<link rel=\"stylesheet\"href=" CND_FOR_STYLESHEET ">"\
-  "</head><body><h3>Directory Content" #title "</h3>"    \
+  "</head><body><h3>Directory Content  %s </h3>"          \
   "<table>" \
   "<tr>"\
   "<th valign=\"top\"><img src=\"/icons/blank.gif\" alt=\"&#128506;\"></th>"\
@@ -37,6 +37,8 @@
   "<th><a href=''>Size</a></th><th><a href=''>Description</a></th>"\
   "</tr><tr><th colspan=\"5\"><hr></th></tr>"
 
+#define  DOM_TITLE(__title, __dump)\
+  sprintf(__dump , HTTP_DIRENDER_DOCTYPE , __title);
 
 #define  HTTP_DIRENDER_DOCTYPE_END "<tr><th colspan=\"5\"><hr></th></tr></table></body></html>"
 #define  HTML_ALTIMG "<img alt=\"%s\"></td><td><a href=\"%s\">%s</a></td><td align=\"right\">%s </td><td align=\"right\">%s" 
@@ -143,7 +145,7 @@ int http_transmission(int  __user_agent   ,  char  content_delivry __parmreq) ;
 
 fobject_t * file_detail(fobject_t *  __fobj ,  char *__fitem , int __tfmtopt ) ;
 
-static char * file_size_human_readable(float raw_filesize) ;
+static char * file_size_human_readable(float raw_filesize) ; 
 __extern_always_inline void  append2tablerow(char item __parmreq,
                                       char render_buffer __parmreq, 
                                       char * subdirent,
@@ -176,7 +178,7 @@ __extern_always_inline void  append2tablerow(char item __parmreq,
       if(!strcmp(item ,  PREVIOUS))  
       {
         //!TODO :  Put previous  navigation on top 
-        sprintf(sources, HTML_ALTIMG, HTML_UBACK , http_path, HTML_UBACK, fobj.hr_time); 
+        sprintf(sources, HTML_ALTIMG, HTML_UBACK , http_path,"Parent Directory", fobj.hr_time); 
         goto  append_td ; 
       } 
     }  
