@@ -198,7 +198,7 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
      return nptr; 
   }
  
-  char  http_dom_content[HTTP_REQST_BUFF] = {0};  
+  char  http_dom_content[HTTP_REQST_BUFF] = {0};
   char subdir[PATH_MAX_LENGHT] = {0} ; 
   if(dir)  
   { 
@@ -213,7 +213,9 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
   }
    
   
-  DOM_TITLE(!dir? "/": dir ,  http_dom_content) ; 
+  DOM_TITLE(!dir? "/": dir ,  http_dom_content) ;
+  //! make  a pot hole for pervious navigation item  
+  
   DIR *dirent  = opendir(current_dirent_root) ;  
   if (!dirent) 
   {
@@ -233,7 +235,7 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
     //! Special  file are note allowed  
     if(dirent_scaner->d_type & (DT_REG | DT_DIR))  
     { 
-      append2tablerow(dirent_scaner->d_name, http_dom_content , subdir , allow_previous_navigation) ;  
+      append2tablerow(dirent_scaner->d_name, http_dom_content, subdir , allow_previous_navigation) ;  
       //!NOTE : maybe add  limit ? 
     }
   }

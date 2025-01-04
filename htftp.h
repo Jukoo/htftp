@@ -13,7 +13,9 @@
 #define  __parmreq [static 1] 
 #define  __null  (__ptr_t) 0  
 #define  __bunit  1<<3 
-#define  nptr  __null  
+#define  nptr  __null
+
+#define  _Nullable  
 
 #define __maybe_unused (__ptr_t) 
 
@@ -36,12 +38,11 @@
   "<th><a href=''>Last modified</a></th>"\
   "<th><a href=''>Size</a></th><th><a href=''>Description</a></th>"\
   "</tr><tr><th colspan=\"5\"><hr></th></tr>"
-
-#define  DOM_TITLE(__title, __dump)\
-  sprintf(__dump , HTTP_DIRENDER_DOCTYPE , __title);
-
-#define  HTTP_DIRENDER_DOCTYPE_END "<tr><th colspan=\"5\"><hr></th></tr></table></body></html>"
+#define  __TR_BEGIN  "<tr><td valign=\"top\">"
 #define  HTML_ALTIMG "<img alt=\"%s\"></td><td><a href=\"%s\">%s</a></td><td align=\"right\">%s </td><td align=\"right\">%s" 
+#define  __TR_END    "</td><td>&nbsp;--------</td></tr>" 
+#define  HTTP_DIRENDER_DOCTYPE_END "<tr><th colspan=\"5\"><hr></th></tr></table></body></html>"
+
 
 //!Miscelleaneous  html  unicode symbole
 //!Source : https://unicodeplus.com/ 
@@ -50,6 +51,10 @@
 #define HTML_UBACK   "&#129192;" 
 
 #define  PREVIOUS ".." 
+
+
+#define  DOM_TITLE(__title, __dump)\
+  sprintf(__dump , HTTP_DIRENDER_DOCTYPE , __title);
 
 
 #if !defined(DEFAULT_PORT) 
@@ -119,11 +124,9 @@ typedef  struct http_request_header_t   http_reqhdr_t ;
 typedef  struct fobject_t 
 {
    char *hr_time ;   //!  human readable  time 
-   char *hr_size ;
-
-   size_t fsize ; 
+   char *hr_size ;   //!  human readable  size 
+   size_t fsize ;    
    time_t ftime ;  
-  
 } fobject_t ; 
 
 #define TIME_ASC 1    //!  time read format  ascii mode    
@@ -147,17 +150,19 @@ fobject_t * file_detail(fobject_t *  __fobj ,  char *__fitem , int __tfmtopt ) ;
 
 static char * file_size_human_readable(float raw_filesize) ; 
 __extern_always_inline void  append2tablerow(char item __parmreq,
-                                      char render_buffer __parmreq, 
-                                      char * subdirent,
+                                      char render_buffer  __parmreq, 
+                                      char * subdirent _Nullable , 
                                       int  show_previous)   
 {
   //!TODO : get item size  and last modified 
-  fobject_t fobj ; 
-  char single_node_list[4096] = "<tr><td valign=\"top\">"; 
+  fobject_t fobj ;
+  char single_node_list[4096] = __TR_BEGIN  ; 
   char sources[4096]={0} ; 
   //! Previous navigation 
- 
- 
+  int  prevnav_state =0 ;
+  int i = 0; 
+  char *renderer_buffer_start = (render_buffer+(strlen(render_buffer) + 0xff)) ; 
+
   if(0==show_previous  &&  strstr(item, PREVIOUS)) return  ;  
   if(1 < strlen(subdirent) &&  subdirent) 
   {
@@ -178,7 +183,8 @@ __extern_always_inline void  append2tablerow(char item __parmreq,
       if(!strcmp(item ,  PREVIOUS))  
       {
         //!TODO :  Put previous  navigation on top 
-        sprintf(sources, HTML_ALTIMG, HTML_UBACK , http_path,"Parent Directory", fobj.hr_time); 
+        sprintf(sources, HTML_ALTIMG, HTML_UBACK , http_path,"Parent Directory", fobj.hr_time);
+        prevnav_state^=1; 
         goto  append_td ; 
       } 
     }  
@@ -201,20 +207,37 @@ __extern_always_inline void  append2tablerow(char item __parmreq,
     { 
       sprintf(sources, HTML_ALTIMG, HTML_UDOC , item , item, fobj.hr_time ,  fobj.hr_size); 
     }else 
-      sprintf(sources,HTML_ALTIMG , HTML_UFOLDER , item , item, fobj.hr_time , fobj.hr_size); 
+      sprintf(sources,HTML_ALTIMG , HTML_UFOLDER , item , item, fobj.hr_time , fobj.hr_size);  
 
+    i^=1; 
   }
 
  
 append_td:
-  strcat(sources, "</td><td>&nbsp;--------</td></tr>") ; 
+
+  strcat(sources ,  __TR_END) ; 
   strcat(single_node_list , sources) ;
   bzero(sources,  4096); 
   
-  free(fobj.hr_time),  fobj.hr_time=0 ;   
-  free(fobj.hr_size),  fobj.hr_size=0 ; 
+  free(fobj.hr_time), fobj.hr_time=0 ;   
+  free(fobj.hr_size), fobj.hr_size=0 ; 
   
-  strcat(render_buffer , single_node_list) ; 
+  if(prevnav_state) 
+  {
+    prevnav_state^=1;  
+     //!put previous parent on top 
+    strcat(render_buffer , single_node_list) ; 
+    strcat(render_buffer , renderer_buffer_start)  ; 
+  }else if (!prevnav_state && !i)   
+  { 
+    strcat(renderer_buffer_start , single_node_list) ; 
+  }
+  if (i) 
+  { 
+    strcat(render_buffer , single_node_list) ; 
+    i^=1; 
+  }
+
 }
 
 #endif 
