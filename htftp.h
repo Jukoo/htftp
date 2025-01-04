@@ -39,7 +39,7 @@
 
 
 #define  HTTP_DIRENDER_DOCTYPE_END "<tr><th colspan=\"5\"><hr></th></tr></table></body></html>"
-#define  HTML_ALTIMG "<img alt=\"%s\"></td><td><a href=\"%s\">%s</a></td><td align=\"right\">%s" 
+#define  HTML_ALTIMG "<img alt=\"%s\"></td><td><a href=\"%s\">%s</a></td><td align=\"right\">%s </td><td align=\"right\">%s" 
 
 //!Miscelleaneous  html  unicode symbole
 //!Source : https://unicodeplus.com/ 
@@ -116,12 +116,11 @@ typedef  struct http_request_header_t   http_reqhdr_t ;
 
 typedef  struct fobject_t 
 {
+   char *hr_time ;   //!  human readable  time 
+   char *hr_size ;
+
    size_t fsize ; 
    time_t ftime ;  
-   char fitem _rblock(100) ; 
-   union{  
-     char *hr_time;   //!  human readable  time 
-   };
   
 } fobject_t ; 
 
@@ -144,6 +143,7 @@ int http_transmission(int  __user_agent   ,  char  content_delivry __parmreq) ;
 
 fobject_t * file_detail(fobject_t *  __fobj ,  char *__fitem , int __tfmtopt ) ;
 
+static char * file_size_human_readable(float raw_filesize) ;
 __extern_always_inline void  append2tablerow(char item __parmreq,
                                       char render_buffer __parmreq, 
                                       char * subdirent,
@@ -184,10 +184,10 @@ __extern_always_inline void  append2tablerow(char item __parmreq,
     size_t type  = statops(stat , path,  st_mode) ; 
     if (type  & S_IFREG) 
     {
-      sprintf(sources, HTML_ALTIMG , HTML_UDOC , http_path , item, fobj.hr_time); 
+      sprintf(sources, HTML_ALTIMG , HTML_UDOC , http_path , item, fobj.hr_time ,  fobj.hr_size); 
        
     }else{
-      sprintf(sources, HTML_ALTIMG , HTML_UFOLDER , http_path, item, fobj.hr_time); 
+      sprintf(sources, HTML_ALTIMG , HTML_UFOLDER , http_path, item, fobj.hr_time  , fobj.hr_size); 
     }
   } 
 
@@ -197,16 +197,20 @@ __extern_always_inline void  append2tablerow(char item __parmreq,
     size_t type  = statops(stat , item,  st_mode) ; 
     if (type  & S_IFREG)
     { 
-      sprintf(sources, HTML_ALTIMG, HTML_UDOC , item , item, fobj.hr_time); 
+      sprintf(sources, HTML_ALTIMG, HTML_UDOC , item , item, fobj.hr_time ,  fobj.hr_size); 
     }else 
-      sprintf(sources,HTML_ALTIMG , HTML_UFOLDER , item , item, fobj.hr_time); 
+      sprintf(sources,HTML_ALTIMG , HTML_UFOLDER , item , item, fobj.hr_time , fobj.hr_size); 
 
   }
 
  
 append_td:
-  strcat(sources,"</td><td align=\"right\">- </td><td>&nbsp;</td></tr>") ; 
-  strcat(single_node_list , sources) ; 
+  strcat(sources, "</td><td>&nbsp;--------</td></tr>") ; 
+  strcat(single_node_list , sources) ;
+  bzero(sources,  4096); 
+  
+  free(fobj.hr_time),  fobj.hr_time=0 ;   
+  free(fobj.hr_size),  fobj.hr_size=0 ; 
   
   strcat(render_buffer , single_node_list) ; 
 }
