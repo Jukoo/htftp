@@ -159,9 +159,10 @@ __extern_always_inline void  hypertex_http_dom_append2list(char item __parmreq,
   {
     char path[100]={0} ; 
     //!NOTE: Just a quick  fix : should be optimize for later  cheers.....  
-    if(*(subdirent+(strlen(subdirent)+~0))  == '/') 
+    if((*(subdirent+(strlen(subdirent)+~0)) & 0xff) == 0x2f) 
       *(subdirent+strlen(subdirent)+~0)=0; 
 
+    sprintf(path  , "%s%c%s" ,  subdirent , 0x2f ,item) ; 
     file_detail(&fobj, path, TIME_NUM ) ; 
   
     if(show_previous) 
@@ -184,8 +185,8 @@ __extern_always_inline void  hypertex_http_dom_append2list(char item __parmreq,
       sprintf(sources, "<img alt=\"&#128193;\"></td><td><a href=\"%s\">%s/</a></td><td align=\"right\">%s" ,path , item, fobj.hr_time); 
        
     }
-
   } 
+
   if(0 == strlen(subdirent))
   {
     file_detail(&fobj , item , TIME_NUM ) ; 
