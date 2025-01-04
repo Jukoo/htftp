@@ -233,8 +233,7 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
     //! Special  file are note allowed  
     if(dirent_scaner->d_type & (DT_REG | DT_DIR))  
     { 
-      
-      hypertex_http_dom_append2list(dirent_scaner->d_name, http_dom_content , subdir , allow_previous_navigation) ;  
+      append2tablerow(dirent_scaner->d_name, http_dom_content , subdir , allow_previous_navigation) ;  
       //!NOTE : maybe add  limit ? 
     }
   }
