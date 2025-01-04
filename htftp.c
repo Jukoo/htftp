@@ -281,9 +281,30 @@ fobject_t* file_detail(fobject_t * fobj  , char * file_item, int timefmt_opt)
      fobj->hr_time = strdup(tbuff) ; 
    }
    
-   printf("realtime -> %s : %s -> size %i\n" ,  file_item, fobj->hr_time,fobj->fsize) ;  
+   fobj->hr_size = file_size_human_readable(fobj->fsize)  ;
 
+   printf("realtime -> %s : %s -> size %s\n" ,  file_item, fobj->hr_time,  fobj->hr_size) ;
    return  fobj ; 
+   
+} 
+
+static char * file_size_human_readable(float raw_filesize)   
+{
+  const  size_t byte_unit = 1024;  
+  const  char*  symbol_unit={" KMGTPE"} ;
+  
+  char symbol_index =0 ; 
+  while (raw_filesize >  byte_unit)
+  {
+     raw_filesize/=byte_unit; 
+     symbol_index=-~symbol_index;  
+  }
+   
+  char readable_format[10]={0};  
+  sprintf(readable_format,"%4.1lf %c",(double)raw_filesize ,  *(symbol_unit+symbol_index)) ;   
+
+  return strdup(readable_format) ; 
+
    
 }
 static void  http_prepare(char * restrict  __global_content , ...)
