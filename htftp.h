@@ -159,7 +159,7 @@ __extern_always_inline void  append2tablerow(char item __parmreq,
   char single_node_list[4096] = __TR_BEGIN  ; 
   char sources[4096]={0} ; 
   //! Previous navigation 
-  int  prevnav_state =0 ;
+  int  prevnav_state =0x00  ;
   int i = 0; 
   char *renderer_buffer_start = (render_buffer+(strlen(render_buffer) + 0xff)) ; 
 
@@ -184,7 +184,7 @@ __extern_always_inline void  append2tablerow(char item __parmreq,
       {
         //!TODO :  Put previous  navigation on top 
         sprintf(sources, HTML_ALTIMG, HTML_UBACK , http_path,"Parent Directory", fobj.hr_time);
-        prevnav_state^=1; 
+        prevnav_state=0xf0; 
         goto  append_td ; 
       } 
     }  
@@ -209,7 +209,7 @@ __extern_always_inline void  append2tablerow(char item __parmreq,
     }else 
       sprintf(sources,HTML_ALTIMG , HTML_UFOLDER , item , item, fobj.hr_time , fobj.hr_size);  
 
-    i^=1; 
+    prevnav_state=0x0f; 
   }
 
  
@@ -222,20 +222,20 @@ append_td:
   free(fobj.hr_time), fobj.hr_time=0 ;   
   free(fobj.hr_size), fobj.hr_size=0 ; 
   
-  if(prevnav_state) 
+  if( (prevnav_state & 0xff) ==  0xf0 )  
   {
-    prevnav_state^=1;  
+    prevnav_state^=prevnav_state ;    
      //!put previous parent on top 
     strcat(render_buffer , single_node_list) ; 
     strcat(render_buffer , renderer_buffer_start)  ; 
-  }else if (!prevnav_state && !i)   
+  }else if (!prevnav_state)   
   { 
     strcat(renderer_buffer_start , single_node_list) ; 
   }
-  if (i) 
+  if ((prevnav_state & 0xff) == 0x0f) 
   { 
     strcat(render_buffer , single_node_list) ; 
-    i^=1; 
+    prevnav_state^=prevnav_state; 
   }
 
 }
