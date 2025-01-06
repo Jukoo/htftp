@@ -4,6 +4,7 @@
 #include <assert.h> 
 #include <string.h> 
 #include <err.h> 
+#include <error.h> 
 #include <errno.h> 
 #include <ctype.h>
 #include <fcntl.h> 
@@ -88,16 +89,20 @@ static http_protocol_header_t  * explode(http_protocol_header_t *hproto , char *
 //! GET  the requested resource  from user agent 
 char *http_get_requested_content(http_reqhdr_t *http_req)   
 {
-  char *requested_filename  =  (char *) http_req->http_hproto.request   ; 
-
+  char *requested_filename  =  (char *) http_req->http_hproto.request   ;
   //!  looking for / only that mean it try  to reach "index.html"  
   if(1 == strlen(requested_filename)  &&  0x2f == (*requested_filename & 0xff) )  
   {
-    //!trying  accessing default file  ->  index.html   
-    if(access((char *) HTTP_HYPERTEXT_DEFAULT_FNAME, F_OK|R_OK)) 
-      return nptr; 
-
-    return   (char *) HTTP_HYPERTEXT_DEFAULT_FNAME; 
+    //!trying  accessing default file  ->  index.html  or  index.htm  
+    if(access((char *) HTML_DEFAULT_RESSOURCE, F_OK|R_OK))
+    { 
+      if(access(HTML_DEFAULT_RESSOURCE_ALT,F_OK|R_OK))
+        return nptr; 
+      else 
+        return (char *) HTML_DEFAULT_RESSOURCE_ALT;
+    } 
+     
+    return   (char *) HTML_DEFAULT_RESSOURCE; 
   } 
  
   requested_filename =  (requested_filename+1) ;  

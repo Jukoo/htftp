@@ -68,8 +68,11 @@
 #define HTTP_HEADER_RESPONSE_OK "HTTP/1.1 200 OK" STR(CRLF) 
 //TODO : add 404 NO RESOURCE FOUND  
 
-#ifndef  HTTP_HYPERTEXT_DEFAULT_FNAME 
-# define HTTP_HYPERTEXT_DEFAULT_FNAME   "index.html" 
+#define  HTTP_EXTF_DEF   html
+#define  HTTP_EXTF_ATL   htm
+#ifndef  HTML_DEFAULT_RESSOURCE 
+# define HTML_DEFAULT_RESSOURCE        "index."STR(HTTP_EXTF_DEF) 
+# define HTML_DEFAULT_RESSOURCE_ALT    "index."STR(HTTP_EXTF_ATL) 
 #endif  
 
 enum { 
