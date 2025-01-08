@@ -1,35 +1,132 @@
 #include <stdlib.h> 
 #include <stdio.h>
 #include <unistd.h>
-#include <assert.h> 
 #include <string.h> 
+#include <ctype.h>
+#include <fcntl.h> 
+#include <time.h> 
+#include <poll.h> 
+#include <dirent.h> 
+
+#include <sys/socket.h> 
+#include <sys/stat.h> 
+#include <netinet/in.h>
+
+#include <assert.h> 
 #include <err.h> 
 #include <error.h> 
 #include <errno.h> 
-#include <ctype.h>
-#include <fcntl.h> 
-#include <sys/socket.h> 
-#include <dirent.h> 
-#include <sys/stat.h> 
-#include <time.h> 
-
 
 #include "htftp.h"
 
-struct http_protocol_header_t 
+struct __http_protocol_header_t 
 {
   char method       _rblock(100); 
   char request      _rblock(100);
   char http_version _rblock(100);   
 }; 
 
-struct http_request_header_t 
+struct __http_request_header_t 
 {
   http_protocol_header_t http_hproto ; 
   char  server_host _rblock(0xff) ;
   char  user_agent  _rblock(0xff) ;   
 };   
 
+struct __htftp_t { 
+   int _sp;
+   struct  __http_request_header_t * _hfhdr ; 
+   struct sockaddr_in  *_insaddr; 
+   struct pollfd _spoll; 
+}; 
+
+htftp_t *  htftp_start(int  portnumber , htftp_fcfg fconfig , void * extra_argument)   
+{
+  int portnumb = ( 0 >= portnumber) ? DEFAULT_PORT : portnumber ; 
+  
+  htftp_t *hf =  (htftp_t*) malloc(sizeof(*hf)) ; 
+  if(!hf)  
+    return nptr;
+  
+  int sfd = socket(PF_INET, SOCK_STREAM , IPPROTO_TCP);
+  if(~0 == sfd) 
+  { 
+    free(hf); 
+    return nptr; 
+  }  
+  
+  setup_htftp(hf,sfd, portnumb) ; 
+  hf->_hfhdr= nptr ; 
+  
+  if (!fconfig)  
+    __use_defconfig(hf ,extra_argument) ; 
+  else 
+    fconfig(hf,extra_argument);  
+  
+  return hf ;  
+}
+
+int htftp_polling(htftp_t * restrict hf) 
+{
+    hf->_spoll.fd= accept(__getsockfd(hf),nptr,nptr) ;   
+    hf->_spoll.events= POLLIN ; 
+    hf->_spoll.revents=0; 
+
+  
+  if(~0 == hf->_spoll.fd) 
+     return ~0 ; 
+  
+  if(~0 ==  poll(&hf->_spoll, 1 , ~0)) 
+    return ~0 ;
+ 
+  int hf_pack_fdevt= hf->_spoll.revents;    
+  hf_pack_fdevt<<=8;
+  hf_pack_fdevt|=hf->_spoll.fd ;
+
+  return hf_pack_fdevt ; 
+}
+static void  setup_htftp(struct __htftp_t  * restrict hf , int socket_fd , int portnumber)  
+{
+  hf->_sp=socket_fd ; 
+  hf->_sp<<=0x10; 
+  hf->_sp|=portnumber ; 
+}
+void htftp_close(struct  __htftp_t * restrict hf ) 
+{
+   shutdown(__getsockfd(hf) ,  SHUT_RDWR) ;  
+   close(__getsockfd(hf)) ; 
+   free(hf) ;
+   hf=0 ; 
+}
+static void __use_defconfig(htftp_t  *hf , void *_Nullable xtrargs ) 
+{
+   hf->_insaddr =  &(struct sockaddr_in) { PF_INET , htons(__getportnb(hf)) ,  htonl(INADDR_ANY) };  
+   
+   socklen_t slen = sizeof(*hf->_insaddr) ; 
+   
+   int always_reuse_address = 1 ; 
+   if (setsockopt(__getsockfd(hf) , SOL_SOCKET,SO_REUSEADDR  ,&always_reuse_address, sizeof(always_reuse_address)))
+     warn("Not  Able to re-use  address") ; 
+ 
+   if(bind(__getsockfd(hf) ,(SA*)hf->_insaddr  , slen)) 
+   {
+     warn("binding error") ; 
+     close(__getsockfd(hf)); 
+     free(hf) ; 
+     hf=0;
+     exit(EXIT_FAILURE) ; 
+   }
+   
+   if(listen(__getsockfd(hf),  LISTEN_BACKLOG))
+   {
+     warn("listen  error") ; 
+     close(__getsockfd(hf)); 
+     free(hf) ;
+     hf=0; 
+     exit(EXIT_FAILURE) ; 
+   }
+   return; 
+}
 
 http_reqhdr_t  *parse_http_request(char http_rbuff __parmreq)  
 {
@@ -40,7 +137,7 @@ http_reqhdr_t  *parse_http_request(char http_rbuff __parmreq)
    char *rbuff = (char *) http_rbuff, header[HTTP_REQUEST_HEADER_LINE][0xff]={0} ,  
         *linefeed=nptr, source[HTTP_REQST_BUFF>>1] = {0}; 
     
-   size_t size=0,  i= 0 ;  
+   size_t size=0, i=0 ;  
 
    while( (*rbuff & 0xff) && i <  HTTP_REQUEST_HEADER_LINE )   
    { 
