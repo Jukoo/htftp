@@ -14,16 +14,51 @@
 #include <poll.h> 
 #include <error.h> 
 
-
 #include "htftp.h" 
 
+#if defined(ARGHLPER) 
+#include "arghlp.h"
 
+#define SYNOPSYS " [OPTION][VALUE]...\n\
+  Open local http server like FTP site" 
+
+#define FOOTER   "by Umar Ba <jUmarB@protonmail.com>"
+
+struct optionx  opt[]= { 
+  {{"help",   0, (void *)0,'h'} , "\t\tprint this help"},
+  {{"version",0, (void *)0,'v'} , "\t\tVersion of the program"},
+  {{"port",   1, (void *)0,'p'} , "\t\ttarget port"},
+  {{"target", 1, (void *)0,'t'} , "\t\ttarget path to serve"},
+  OPTX_END
+} ; 
+
+void *argparse(int ac  , char * const *av ,  const char * shortopts , struct option* optl, void *args) 
+{
+  if(1 == ac) 
+  {
+    __help__;  
+    exit(1); 
+  } 
+
+} 
+
+#endif 
 int
 main(int ac , char **av , char **env)   
 {
-  
   int pstatus =  EXIT_SUCCESS; 
   setvbuf(stdout,  nptr , _IONBF , 0) ;  //!  No buffering on stdout 
+
+#if defined(ARGHLPER)
+  struct arghlp argp = { 
+    .synopsys = {SYNOPSYS,FOOTER},
+    .options=opt, 
+    .ah_handler=argparse 
+  }; 
+ 
+  arghlp_context(ac , av ,&argp , (void *)0) ; 
+
+#endif 
   htftp_t *hf  = htftp_start(9090,nptr, nptr) ;  
   if (!hf) 
   {
