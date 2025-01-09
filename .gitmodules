@@ -1,0 +1,3 @@
+[submodule "libarghlp"]
+	path = libarghlp
+	url = git@github.com:Jukoo/libarghlp.git

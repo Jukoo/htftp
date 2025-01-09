@@ -54,3 +54,5 @@ Mkfile.old
 dkms.conf
 index.html 
 cbuild.sh 
+libarghlp/
+.gitmodules 
