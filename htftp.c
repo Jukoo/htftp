@@ -38,7 +38,7 @@ struct __htftp_t {
    struct  __http_request_header_t * _hfhdr ; 
    struct sockaddr_in  *_insaddr; 
    struct pollfd _spoll; 
-}; 
+};
 
 htftp_t *  htftp_start(int  portnumber , htftp_fcfg fconfig , void * extra_argument)   
 {
@@ -184,10 +184,18 @@ static http_protocol_header_t  * explode(http_protocol_header_t *hproto , char *
 
 //! retrieve  the requested content from http_request_header_t 
 //! GET  the requested resource  from user agent 
-char *http_get_requested_content(http_reqhdr_t *http_req)   
+char *http_get_requested_content(http_reqhdr_t *http_req , char  * path_target)   
 {
+  if(path_target)
+  {
+     if(chdir(path_target)) 
+     {
+       warnx("Not able to change directory :%s\n", strerror(*__errno_location())); 
+       return nptr ; 
+     } 
+  }
   char *requested_filename  =  (char *) http_req->http_hproto.request   ;
-  //!  looking for / only that mean it try  to reach "index.html"  
+  
   if(1 == strlen(requested_filename)  &&  0x2f == (*requested_filename & 0xff) )  
   {
     //!trying  accessing default file  ->  index.html  or  index.htm  
@@ -293,7 +301,7 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
   int allow_previous_navigation = 0; 
   char current_dirent_root[PATH_MAX_LENGHT] = {0} ; 
   (void *)getcwd(current_dirent_root , PATH_MAX_LENGHT) ;  
-
+  
   if ( 0 != errno && (ERANGE & errno)) 
   {
      warn("Total lenght Path Exceeded %s\n",   strerror(*__errno_location())); 
@@ -306,8 +314,8 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
   { 
     //! NOTE : dealing with navigation between path 
     sprintf(subdir , "/%s" , dir) ; 
-    strcat(current_dirent_root ,  subdir);   
-    allow_previous_navigation=1;  
+    strcat(current_dirent_root, subdir); 
+    allow_previous_navigation=1; 
   }else  
   {
      //! Do  not show previous   link  
@@ -368,7 +376,6 @@ fobject_t* file_detail(fobject_t * fobj  , char * file_item, int timefmt_opt)
      if (!lctime)   
      {
        warnx("Error occured while formation  time location") ; 
-       
      }
      
      fobj->hr_time = asctime(lctime) ;  
@@ -426,4 +433,89 @@ static void  http_prepare(char * restrict  __global_content , ...)
 
    __builtin_va_end(ap) ; 
 }
+static void  append2tablerow(char item __parmreq,
+                             char render_buffer  __parmreq, 
+                             char *  _Nullable restrict subdirent,
+                             int  show_previous)   
+{
+  //!TODO : get item size  and last modified 
+  fobject_t fobj ;
+  char single_node_list[4096] = __TR_BEGIN  ; 
+  char sources[10000]={0}; 
+  //! Previous navigation 
+  int  prevnav_state =0x00;
+  char *renderer_buffer_start = (render_buffer+(strlen(render_buffer) + 0xff)) ; 
 
+  if(0==show_previous  &&  strstr(item, PREVIOUS)) return;
+
+  if(1 < strlen(subdirent) &&  subdirent) 
+  {
+    char path[100]={0} ; 
+    //!NOTE: Super ugly but  is just a quick  fix : should be optimized for later :) .....  
+    if(0x2f == (*(subdirent+(strlen(subdirent)+~0)) & 0xff)) 
+      *(subdirent+strlen(subdirent)+~0)=0; 
+
+    //!  start  from the 2nd index of path 
+    //!  the first index is reserved  to resolve path  
+    char *http_path= (path+1) ;
+    sprintf(http_path  , "%s%c%s" ,  subdirent , 0x2f ,item) ;
+    memset(path , 0x2e , 1 );  
+    file_detail(&fobj, path, TIME_NUM ) ; 
+  
+    if(show_previous) 
+    {
+      if(!strcmp(item, PREVIOUS))  
+      { 
+        sprintf(sources, HTML_ALTIMG, HTML_UBACK , http_path,"Parent Directory", EMPTY_SPACE, EMPTY_SPACE, "Go back")  ;
+        prevnav_state=0xf0; 
+        goto  append_td ; 
+      } 
+    }  
+    
+    size_t type  = statops(stat , path,  st_mode) ; 
+    if (type  & S_IFREG) 
+      sprintf(sources, HTML_ALTIMG , HTML_UDOC , http_path , item, fobj.hr_time ,  fobj.hr_size , DESC("--------")); 
+    else 
+      sprintf(sources, HTML_ALTIMG , HTML_UFOLDER , http_path, item, fobj.hr_time  , fobj.hr_size ,DESC("--------")); 
+  } 
+
+  //!root 
+  if(0 == strlen(subdirent))
+  {
+    file_detail(&fobj , item , TIME_NUM ) ; 
+    size_t type  = statops(stat , item,  st_mode) ; 
+    if (type  & S_IFREG)
+      sprintf(sources, HTML_ALTIMG, HTML_UDOC , item , item, fobj.hr_time ,  fobj.hr_size,  DESC("--------"));  
+    else  
+      sprintf(sources,HTML_ALTIMG , HTML_UFOLDER , item , item, fobj.hr_time , fobj.hr_size, DESC("--------")) ;  
+
+    prevnav_state=0x0f; 
+  }
+
+ 
+append_td:
+
+  strcat(sources ,  __TR_END) ; 
+  strcat(single_node_list , sources) ;
+  bzero(sources,  4096); 
+  
+  free(fobj.hr_time), fobj.hr_time=0 ;   
+  free(fobj.hr_size), fobj.hr_size=0 ; 
+  
+  if( (prevnav_state & 0xff) ==  0xf0 )  
+  {
+    prevnav_state^=prevnav_state ;    
+     //!put previous parent on top 
+    strcat(render_buffer , single_node_list); 
+    strcat(render_buffer , renderer_buffer_start); 
+  }else if (!prevnav_state)   
+  { 
+    strcat(renderer_buffer_start , single_node_list) ; 
+  }
+  if ((prevnav_state & 0xff) == 0x0f) 
+  { 
+    strcat(render_buffer , single_node_list) ; 
+    prevnav_state^=prevnav_state; 
+  }
+
+}

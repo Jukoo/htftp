@@ -3,6 +3,9 @@
 #include <sys/cdefs.h>
 #include <stdarg.h> 
 
+#if !defined(__GNUC__) 
+# error  "Require GNU C compiler" 
+#endif  
 //! require c11+ standard 
 #if __STDC_VERSION__ < 201112L 
 # error "required at least c11 standard"
@@ -26,6 +29,7 @@
 # define  CND_FOR_STYLESHEET "https://unpkg.com/98.css" 
 #endif 
 
+//!TODO :  Turn it into  binary image
 #define  HTTP_DIRENDER_DOCTYPE                          \
   "<!DOCTYPE HTML>"                                     \
   "<html lang=\"en\"><head><meta charset=\"utf-8\">"    \
@@ -42,10 +46,14 @@
   "<th><a href=''>Size</a></th><th><a href=''>Description</a></th>"\
   "</tr><tr><th colspan=\"5\"><hr></th></tr>"
 #define  __TR_BEGIN  "<tr><td valign=\"top\">"
-#define  HTML_ALTIMG "<img alt=\"%s\"></td><td><a href=\"%s\">%s</a></td><td align=\"right\">%s </td><td align=\"right\">%s" 
-#define  __TR_END    "</td><td>&nbsp;--------</td></tr>" 
+#define  HTML_ALTIMG "<img alt=\"%s\"></td><td><a href=\"%s\">%s</a></td><td align=\"right\">%s </td><td align=\"right\">%s</td><td>&nbsp;%s" 
+
+#define  __TR_END  "</td></tr>" 
 #define  HTTP_DIRENDER_DOCTYPE_END "<tr><th colspan=\"5\"><hr></th></tr></table></body></html>"
 
+#define  EMPTY_SPACE ( (char[2]){0x20} )   
+#define  DESC(__description)\
+  __description
 
 //!Miscelleaneous  html  unicode symbole
 //!Source : https://unicodeplus.com/ 
@@ -94,14 +102,8 @@ enum {
 # define LISTEN_BACKLOG  4 
 #endif 
 
-
-//! Only the 3 first  GET , HOST , USER-AGENT 
+//! GET , HOST , USER-AGENT 
 #define HTTP_REQUEST_HEADER_LINE  3 
-
-//! Needed by http_prepare                      __ 
-//! 1 -> HTTP_HEADER_RESPONSE (HTTP_RESPONCE)    |
-//! 2 -> CONTENT (html)       (!<DOCTYPE> ...)   | -> Send Type  
-//! 3 -> CRLF                 (\n\r\n\r)        _|
 #define HTTP_GLOBAL_CONTENT_DISPATCH  3   
 
 #define  HTTP_REQST_BUFF  sizeof(__ptr_t) <<  (__bunit << 1)  
@@ -127,14 +129,14 @@ enum {
 typedef  struct __http_protocol_header_t  http_protocol_header_t ; 
 typedef  struct __http_request_header_t   http_reqhdr_t ; 
 typedef  struct __htftp_t                 htftp_t;
+typedef  struct __fobject_t               fobject_t ; 
 
-typedef  struct fobject_t 
-{
+struct __fobject_t {
    char *hr_time ;   //!  human readable  time 
    char *hr_size ;   //!  human readable  size 
    size_t fsize ;    
    time_t ftime ;  
-} fobject_t ; 
+};
 
 typedef void(*__htftp_fcfg_t)(struct __htftp_t * __restrict__ ,  void * __maybe_unused _Nullable) ; 
 #define  htftp_fcfg  __htftp_fcfg_t  
@@ -142,122 +144,32 @@ typedef void(*__htftp_fcfg_t)(struct __htftp_t * __restrict__ ,  void * __maybe_
 #define TIME_ASC 1    //!  time read format  ascii mode    
 #define TIME_NUM 2    //!  time read format  numerical mode 
 
-
 //! For internal use 
 static http_protocol_header_t *explode(http_protocol_header_t * __hproto, char *__restrict__ __raw_data ) ;  
-static char *http_list_dirent_content(char *ftype ,  char  *__dump) ; 
+static char *http_list_dirent_content(char *__ftype ,  char *__dump) ; 
+
 static void  release_local_alloc(char  **_arr);
 static void  http_prepare(char *__restrict__ __global_content , ...) ; 
 static void  setup_htftp(struct __htftp_t  *__restrict__ __hf , int __socket_fd , int __portnumber) ; 
 static void  __use_defconfig(struct __htftp_t* __restrict__ __hf , void * __maybe_unused _Nullable __xtrargs) ;
- 
+static char * file_size_human_readable(float __raw_filesize); 
 extern void htftp_close(struct  __htftp_t * __restrict__ __hf );
+static void  append2tablerow(char __item __parmreq,
+                                      char __render_buffer  __parmreq, 
+                                      char * _Nullable __restrict__ subdirent, 
+                                      int  ___show_previous); 
 
 //!###########################################################################
 htftp_t  *htftp_start(int  __port_number ,  
-                      __htftp_fcfg_t _Nullable __function_configuration  ,  
+                      __htftp_fcfg_t _Nullable __function_configuration, 
                       void * _Nullable  __restrict__ __extra_argument) __attribute__((weak)) ; 
-
-int  htftp_polling(struct __htftp_t  * __restrict__  __hf) ; 
-
+int  htftp_polling(struct __htftp_t  * __restrict__  __hf); 
 http_reqhdr_t* parse_http_request( char __http_buffer __parmreq); 
-char * http_get_requested_content(http_reqhdr_t * __restrict__ __hproto)  ; 
+char * http_get_requested_content(http_reqhdr_t * __restrict__ __hproto,
+                                  char * __restrict__ __target_path); 
 char * http_read_content(char *__restrict__ __filename , char * __restrict__  __dump) ; 
-int http_transmission(int  __user_agent   ,  char  __content_delivry __parmreq) ; 
-
-fobject_t * file_detail(fobject_t *__restrict__  __fobj ,  char *__restrict__ __fitem , int __tfmtopt ) ;
-static char * file_size_human_readable(float __raw_filesize) ; 
-
-
-__extern_always_inline void  append2tablerow(char item __parmreq,
-                                      char render_buffer  __parmreq, 
-                                      char * subdirent _Nullable , 
-                                      int  show_previous)   
-{
-  //!TODO : get item size  and last modified 
-  fobject_t fobj ;
-  char single_node_list[4096] = __TR_BEGIN  ; 
-  char sources[4096]={0} ; 
-  //! Previous navigation 
-  int  prevnav_state =0x00  ;
-  int i = 0; 
-  char *renderer_buffer_start = (render_buffer+(strlen(render_buffer) + 0xff)) ; 
-
-  if(0==show_previous  &&  strstr(item, PREVIOUS)) return  ;  
-  if(1 < strlen(subdirent) &&  subdirent) 
-  {
-    char path[100]={0} ; 
-    //!NOTE: Super ugly but  is just a quick  fix : should be optimize for later  cheers.....  
-    if(0x2f == (*(subdirent+(strlen(subdirent)+~0)) & 0xff)) 
-      *(subdirent+strlen(subdirent)+~0)=0; 
-
-    //!  start  from the 2nd index of path 
-    //!  the first index is reserved  to resolve path  
-    char *http_path= (path+1) ;
-    sprintf(http_path  , "%s%c%s" ,  subdirent , 0x2f ,item) ; 
-    memset(path , 0x2e , 1 );  
-    file_detail(&fobj, path, TIME_NUM ) ; 
-  
-    if(show_previous) 
-    {
-      if(!strcmp(item ,  PREVIOUS))  
-      {
-        //!TODO :  Put previous  navigation on top 
-        sprintf(sources, HTML_ALTIMG, HTML_UBACK , http_path,"Parent Directory", fobj.hr_time);
-        prevnav_state=0xf0; 
-        goto  append_td ; 
-      } 
-    }  
-    
-    size_t type  = statops(stat , path,  st_mode) ; 
-    if (type  & S_IFREG) 
-    {
-      sprintf(sources, HTML_ALTIMG , HTML_UDOC , http_path , item, fobj.hr_time ,  fobj.hr_size); 
-       
-    }else{
-      sprintf(sources, HTML_ALTIMG , HTML_UFOLDER , http_path, item, fobj.hr_time  , fobj.hr_size); 
-    }
-  } 
-
-  if(0 == strlen(subdirent))
-  {
-    file_detail(&fobj , item , TIME_NUM ) ; 
-    size_t type  = statops(stat , item,  st_mode) ; 
-    if (type  & S_IFREG)
-    { 
-      sprintf(sources, HTML_ALTIMG, HTML_UDOC , item , item, fobj.hr_time ,  fobj.hr_size); 
-    }else 
-      sprintf(sources,HTML_ALTIMG , HTML_UFOLDER , item , item, fobj.hr_time , fobj.hr_size);  
-
-    prevnav_state=0x0f; 
-  }
-
- 
-append_td:
-
-  strcat(sources ,  __TR_END) ; 
-  strcat(single_node_list , sources) ;
-  bzero(sources,  4096); 
-  
-  free(fobj.hr_time), fobj.hr_time=0 ;   
-  free(fobj.hr_size), fobj.hr_size=0 ; 
-  
-  if( (prevnav_state & 0xff) ==  0xf0 )  
-  {
-    prevnav_state^=prevnav_state ;    
-     //!put previous parent on top 
-    strcat(render_buffer , single_node_list) ; 
-    strcat(render_buffer , renderer_buffer_start)  ; 
-  }else if (!prevnav_state)   
-  { 
-    strcat(renderer_buffer_start , single_node_list) ; 
-  }
-  if ((prevnav_state & 0xff) == 0x0f) 
-  { 
-    strcat(render_buffer , single_node_list) ; 
-    prevnav_state^=prevnav_state; 
-  }
-
-}
-
+int http_transmission(int  __user_agent, char  __content_delivry __parmreq) ; 
+fobject_t * file_detail(fobject_t *__restrict__  __fobj ,
+                        char *__restrict__ __fitem,
+                        int __tfmtopt); 
 #endif 
