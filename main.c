@@ -13,6 +13,7 @@
 #include <fcntl.h> 
 #include <poll.h> 
 #include <error.h> 
+#include <locale.h> 
 
 #include "htftp.h" 
 
@@ -80,6 +81,9 @@ main(int ac , char **av , char **env)
 {
   int pstatus =  EXIT_SUCCESS; 
   setvbuf(stdout,  nptr , _IONBF , 0) ;  //!  No buffering on stdout 
+  
+  if (!setlocale(LC_TIME ,  nptr) ) 
+     warnx("local  setting error...") ;  
 
   struct argobjects  argobj = { 
      ._port = DEFAULT_PORT  
