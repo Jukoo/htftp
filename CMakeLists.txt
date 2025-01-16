@@ -5,17 +5,24 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)  
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)  
 
+configure_file(base_DOM.h.in ${CMAKE_SOURCE_DIR}/base_DOM.h)
 add_library(htftp  SHARED  htftp.c)  
 set(CMAKE_BUILD_TYPE Debug) 
 
-
 add_executable(${PROJECT_NAME}  main.c) 
+include(optionconfig.cmake) 
 option(ARGHELPER "Use libarghelper lib from 'https://github.com/Jukoo/libarghlp.git'"  ON)
+option(DOCS "generate the documantation" OFF) 
 set(ARGHELPER_SOURCE "git@github.com:Jukoo/libarghlp.git")
+
+
+message(CHECK_START "checking ...")
+if(DOCS)
+  build_doc_using(Doxygen)
+endif() 
 
 if(ARGHELPER) 
   
-  message(CHECK_START "checking ...")
   find_package(Git REQUIRED)  
     if(NOT GIT_FOUND ) 
       message(FATAL  "Abort Git not found") 

@@ -182,6 +182,11 @@ static http_protocol_header_t  * explode(http_protocol_header_t *hproto , char *
 }
 
 
+static void htftp_t2b(const  char *_Nullable  __filename) 
+{
+  
+}
+
 //! retrieve  the requested content from http_request_header_t 
 //! GET  the requested resource  from user agent 
 char *http_get_requested_content(http_reqhdr_t *http_req , char  * path_target)   
