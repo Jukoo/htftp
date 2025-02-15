@@ -57,11 +57,12 @@ htftp_t *  htftp_start(int  portnumber , htftp_fcfg fconfig , void * extra_argum
   
   setup_htftp(hf,sfd, portnumb) ; 
   hf->_hfhdr= nptr ; 
+ 
+  htftp_fcfg config = nptr ; 
+  *(void **) &config = fconfig?  fconfig : __use_defconfig ; 
+  assert(config) ; 
   
-  if (!fconfig)  
-    __use_defconfig(hf ,extra_argument) ; 
-  else 
-    fconfig(hf,extra_argument);  
+  config(hf , extra_argument) ; 
   
   return hf ;  
 }
@@ -79,28 +80,31 @@ int htftp_polling(htftp_t * restrict hf)
   if(~0 ==  poll(&hf->_spoll, 1 , ~0)) 
     return ~0 ;
  
-  int hf_pack_fdevt= hf->_spoll.revents;    
-  hf_pack_fdevt<<=8;
-  hf_pack_fdevt|=hf->_spoll.fd ;
+  int hf_pack_fdevt=  (hf->_spoll.revents<<8)  | hf->_spoll.fd ;    
 
   return hf_pack_fdevt ; 
 }
+
 static void  setup_htftp(struct __htftp_t  * restrict hf , int socket_fd , int portnumber)  
 {
-  hf->_sp=socket_fd ; 
-  hf->_sp<<=0x10; 
-  hf->_sp|=portnumber ; 
-}
+  hf->_sp= (socket_fd  << 0x10)  | portnumber ;  
+} 
+
 void htftp_close(struct  __htftp_t * restrict hf ) 
 {
    shutdown(__getsockfd(hf) ,  SHUT_RDWR) ;  
    close(__getsockfd(hf)) ; 
    free(hf) ;
    hf=0 ; 
-}
+} 
+
 static void __use_defconfig(htftp_t  *hf , void *_Nullable xtrargs ) 
 {
-   hf->_insaddr =  &(struct sockaddr_in) { PF_INET , htons(__getportnb(hf)) ,  htonl(INADDR_ANY) };  
+   hf->_insaddr =  &(struct sockaddr_in) { 
+     .sin_family = AF_INET, 
+     .sin_port = htons(__getportnb(hf)), 
+     .sin_addr  = htonl(INADDR_ANY) 
+   };  
    
    socklen_t slen = sizeof(*hf->_insaddr) ; 
    
@@ -178,14 +182,8 @@ static http_protocol_header_t  * explode(http_protocol_header_t *hproto , char *
 
 
   return nptr ;  
- 
 }
 
-
-static void htftp_t2b(const  char *_Nullable  __filename) 
-{
-  
-}
 
 //! retrieve  the requested content from http_request_header_t 
 //! GET  the requested resource  from user agent 
@@ -193,6 +191,7 @@ char *http_get_requested_content(http_reqhdr_t *http_req , char  * path_target)
 {
   if(path_target)
   {
+     /*!Note : need to be changed  #LATER */
      if(chdir(path_target)) 
      {
        warnx("Not able to change directory :%s\n", strerror(*__errno_location())); 
@@ -248,9 +247,7 @@ char * http_read_content(char *filename , char *content_dump)
   char content_buffer[HTTP_REQST_BUFF] =  {0} ; 
    
   if(!filename)      
-  {
     return http_list_dirent_content(nptr , content_dump) ;   
-  } 
    
   char *is_dir = strchr(filename , 0x23) ;  
   
@@ -265,7 +262,8 @@ char * http_read_content(char *filename , char *content_dump)
   int  hyper_text_fd = open(filename , O_RDONLY) ; 
   if (~0 ==  hyper_text_fd) 
   {
-     warnx("Not able to read  default hypertext file") ; 
+     warnx("Not able to read  default hypertext file") ;
+     close(hyper_text_fd) ; 
      return nptr ; 
   }
   
@@ -289,11 +287,12 @@ int http_transmission(int  user_agent_fd,  char content_delivry __parmreq )
   //!NOTE : Change it  
   char content_buffer[HTTP_REQST_BUFF] = {0} ; 
   
-  http_prepare(content_buffer,HTTP_HEADER_RESPONSE_OK
-                               , content_delivry 
-                               , STR(CRLF)) ; 
+  http_prepare(content_buffer,HTTP_HEADER_RESPONSE_OK  /*! HTTP/1.1 200 OK \r\n\r\n*/
+                               , content_delivry       /*!        CONTENT          */
+                               , STR(CRLF)) ;          /*!       \r\n\r\n          */  
+
   ssize_t content_bsize  = strlen(content_buffer) ;  
-  //!use sendfile  if the file is  not index.html   
+  //!use sendfile  if the file is  not index.html  
   ssize_t sbytes= send(user_agent_fd , content_buffer , sizeof(content_buffer) ,0);  
   return  sbytes^sizeof(content_buffer)  ;  
   
@@ -307,7 +306,7 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
   char current_dirent_root[PATH_MAX_LENGHT] = {0} ; 
   (void *)getcwd(current_dirent_root , PATH_MAX_LENGHT) ;  
   
-  if ( 0 != errno && (ERANGE & errno)) 
+  if ( 0 != errno && ERANGE == errno) 
   {
      warn("Total lenght Path Exceeded %s\n",   strerror(*__errno_location())); 
      return nptr; 
@@ -348,7 +347,7 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
     
     //! Apply filter on directory  list only  regular  and  common file  
     //! Special  file are note allowed  
-    if(dirent_scaner->d_type & (DT_REG | DT_DIR))  
+    if(dirent_scaner->d_type & (DT_REG | DT_DIR /*!|... */))   
     { 
       append2tablerow(dirent_scaner->d_name, http_dom_content, subdir , allow_previous_navigation) ;  
       //!NOTE : maybe add  limit ? 
@@ -437,7 +436,8 @@ static void  http_prepare(char * restrict  __global_content , ...)
    }
 
    __builtin_va_end(ap) ; 
-}
+} 
+
 static void  append2tablerow(char item __parmreq,
                              char render_buffer  __parmreq, 
                              char *  _Nullable restrict subdirent,
@@ -449,6 +449,7 @@ static void  append2tablerow(char item __parmreq,
   char sources[10000]={0}; 
   //! Previous navigation 
   int  prevnav_state =0x00;
+  //!  char *renderer_buffer_offset_start  = (renderer_buffer+(strler))
   char *renderer_buffer_start = (render_buffer+(strlen(render_buffer) + 0xff)) ; 
 
   if(0==show_previous  &&  strstr(item, PREVIOUS)) return;

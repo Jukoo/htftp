@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.25) 
-project(localserver  VERSION 1.0 DESCRIPTION "simple local webserver for quick serving document page") 
+project(localserver  
+  VERSION 1.0 
+  DESCRIPTION "simple local webserver for quick serving document page" 
+) 
+
 set(CMAKE_C_STANDARD 11) 
 set(CMAKE_C_STANDARD_REQUIRED ON)  
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)  
@@ -9,8 +13,8 @@ configure_file(base_DOM.h.in ${CMAKE_SOURCE_DIR}/base_DOM.h)
 add_library(htftp  SHARED  htftp.c)  
 set(CMAKE_BUILD_TYPE Debug) 
 
+include(optconfig.cmake) 
 add_executable(${PROJECT_NAME}  main.c) 
-include(optionconfig.cmake) 
 option(ARGHELPER "Use libarghelper lib from 'https://github.com/Jukoo/libarghlp.git'"  ON)
 option(DOCS "generate the documantation" OFF) 
 set(ARGHELPER_SOURCE "git@github.com:Jukoo/libarghlp.git")
