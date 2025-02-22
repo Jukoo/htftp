@@ -1,8 +1,9 @@
 #if !defined(HTFTP)
 #define  HTFTP
 #include <sys/cdefs.h>
-#include <stdarg.h> 
-#include "base_DOM.h"  
+#include <stdarg.h>
+
+#include "config.h"  
 
 #if !defined(__GNUC__) 
 # error  "Require GNU C compiler" 
@@ -15,11 +16,13 @@
 #pragma  GCC  diagnostic  ignored "-Wvarargs" 
 
 #define  __parmreq [static 1] 
+#define  __parmreq_(__requested_size) [static __requested_size] 
+
 #define  __null  (__ptr_t) 0  
 #define  __bunit  1<<3 
 #define  nptr  __null
 
-/*NOTE:  this macro are used  for annotation*/
+/*NOTICE:  this macro are used  for annotation*/
 #define  _Nullable  
 #define  _Opac 
 /*!END OF NOTE */
@@ -30,21 +33,22 @@
 # define __maybe_unused 
 #endif
 
+
+
 #define  EMPTY_SPACE ( (char[2]){0x20}  )   
 #define  DESC(__description)\
   __description
-    
 
 #define  DOM_TITLE(__title, __dump)\
   sprintf(__dump , HTTP_DIRENDER_DOCTYPE , __title);
 
 
-#if !defined(DEFAULT_PORT) 
-# define  DEFAULT_PORT  0x2382
-#endif
 
 #define __STR(x)  #x 
 #define STR(x) __STR(x)  
+
+#define  FLOG(__severity_level ,  __mesg) \
+  fmtmsg(MM_CONSOLE|MM_PRINT , "HTFTP:v1.0" , __severity_level , __mesg ,0/*no action */, 0/*no tag*/)
 
 #define CRLF \r\n\r\n      
 #define HTTP_HEADER_RESPONSE_OK "HTTP/1.1 200 OK" STR(CRLF) 
@@ -74,7 +78,7 @@ enum {
 #endif 
 
 //! GET , HOST , USER-AGENT 
-#define HTTP_REQUEST_HEADER_LINE  3 
+#define HTTP_REQUEST_HEADER_LINE      3 
 #define HTTP_GLOBAL_CONTENT_DISPATCH  3   
 
 #define  HTTP_REQST_BUFF  sizeof(__ptr_t) <<  (__bunit << 1)  
@@ -125,11 +129,13 @@ static void  http_prepare(char *__restrict__ __global_content , ...) ;
 static void  setup_htftp(struct __htftp_t  *__restrict__ __hf , int __socket_fd , int __portnumber) ; 
 static void  __use_defconfig(struct __htftp_t* __restrict__ __hf , void * __maybe_unused _Nullable __xtrargs) ;
 static char * file_size_human_readable(float __raw_filesize); 
-extern void htftp_close(struct  __htftp_t * __restrict__ __hf );
 static void  append2tablerow(char __item __parmreq,
                                       char __render_buffer  __parmreq, 
                                       char * _Nullable __restrict__ subdirent, 
                                       int  ___show_previous); 
+
+static void htftp_log(const char * __restrict__ fmt ,  ... )  ; 
+static void htftp_perfrom_localtime(char  __strtime_buffer  __parmreq_(1024)) ; 
 
 //!###########################################################################
 htftp_t  *htftp_start(int  __port_number ,  
@@ -139,6 +145,7 @@ int  htftp_polling(struct __htftp_t  * __restrict__  __hf);
 http_reqhdr_t* parse_http_request( char __http_buffer __parmreq); 
 char * http_get_requested_content(http_reqhdr_t * __restrict__ __hproto,
                                   char * __restrict__ __target_path); 
+extern void htftp_close(struct  __htftp_t * __restrict__ __hf );
 char * http_read_content(char *__restrict__ __filename , char * __restrict__  __dump) ; 
 int http_transmission(int  __user_agent, char  __content_delivry __parmreq) ; 
 fobject_t * file_detail(fobject_t *__restrict__  __fobj ,

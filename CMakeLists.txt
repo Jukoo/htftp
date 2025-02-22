@@ -4,17 +4,23 @@ project(localserver
   DESCRIPTION "simple local webserver for quick serving document page" 
 ) 
 
-set(CMAKE_C_STANDARD 11) 
+set(CMAKE_C_STANDA <output variable> <math expression>)
+
+
 set(CMAKE_C_STANDARD_REQUIRED ON)  
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)  
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)  
+set(CONFIG_HEADER_FILE_IN config.h.in) 
+string(SUBSTRING ${CONFIG_HEADER_FILE_IN} 0  8 CONFIG_HEADER_FILE) 
 
-configure_file(base_DOM.h.in ${CMAKE_SOURCE_DIR}/base_DOM.h)
+message(STATUS ${CONFIG_HEADER_FILE})   
+configure_file(config/${CONFIG_HEADER_FILE_IN} ${CMAKE_SOURCE_DIR}/${CONFIG_HEADER_FILE})
 add_library(htftp  SHARED  htftp.c)  
 set(CMAKE_BUILD_TYPE Debug) 
 
 include(optconfig.cmake) 
 add_executable(${PROJECT_NAME}  main.c) 
+
 option(ARGHELPER "Use libarghelper lib from 'https://github.com/Jukoo/libarghlp.git'"  ON)
 option(DOCS "generate the documantation" OFF) 
 set(ARGHELPER_SOURCE "git@github.com:Jukoo/libarghlp.git")

@@ -57,8 +57,7 @@ void *argparse(int ac  , char * const *av ,  const char * shortopts , struct opt
         exit(EXIT_SUCCESS);
         break; 
       case 'v':
-        //!TODO : generate config macro from cmake build 
-        fprintf(stdout , "version  1.0\n"); 
+        fprintf(stdout , " version  %s \n",  __version) ;  
         break; 
       case 'p':  
         aobj->_port = strtol(optarg , (void *)0 ,  10) ; 
@@ -81,9 +80,6 @@ main(int ac , char **av , char **env)
 {
   int pstatus =  EXIT_SUCCESS; 
   setvbuf(stdout,  nptr , _IONBF , 0) ;  //!  No buffering on stdout 
-  
-  if (!setlocale(LC_TIME ,  nptr) ) 
-     warnx("local  setting error...") ;  
 
   struct argobjects  argobj = { 
      ._port = DEFAULT_PORT  

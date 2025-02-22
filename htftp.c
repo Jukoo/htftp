@@ -8,6 +8,10 @@
 #include <poll.h> 
 #include <dirent.h> 
 
+#include <locale.h> 
+#include <langinfo.h> 
+#include <fmtmsg.h>
+
 #include <sys/socket.h> 
 #include <sys/stat.h> 
 #include <netinet/in.h>
@@ -43,7 +47,8 @@ struct __htftp_t {
 htftp_t *  htftp_start(int  portnumber , htftp_fcfg fconfig , void * extra_argument)   
 {
   int portnumb = ( 0 >= portnumber) ? DEFAULT_PORT : portnumber ; 
-  
+
+  htftp_log("starting  @ %i" , portnumb) ; 
   htftp_t *hf =  (htftp_t*) malloc(sizeof(*hf)) ; 
   if(!hf)  
     return nptr;
@@ -77,7 +82,7 @@ int htftp_polling(htftp_t * restrict hf)
   if(~0 == hf->_spoll.fd) 
      return ~0 ; 
   
-  if(~0 ==  poll(&hf->_spoll, 1 , ~0)) 
+  if(~0 ==  poll(&hf->_spoll, 1 , ~0/*!NOTICE: infinity timeout*/)) 
     return ~0 ;
  
   int hf_pack_fdevt=  (hf->_spoll.revents<<8)  | hf->_spoll.fd ;    
@@ -100,6 +105,9 @@ void htftp_close(struct  __htftp_t * restrict hf )
 
 static void __use_defconfig(htftp_t  *hf , void *_Nullable xtrargs ) 
 {
+   
+   __maybe_unused setlocale(LC_TIME ,"") ;
+
    hf->_insaddr =  &(struct sockaddr_in) { 
      .sin_family = AF_INET, 
      .sin_port = htons(__getportnb(hf)), 
@@ -322,7 +330,7 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
     allow_previous_navigation=1; 
   }else  
   {
-     //! Do  not show previous   link  
+     //! Do  not show previous   link  on  / (root base directory) 
      allow_previous_navigation=0; 
   }
    
@@ -345,12 +353,12 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
     if(1 == strlen(dirent_scaner->d_name) && 0x2e == (*dirent_scaner->d_name) & 0xff)  
       continue;  
     
-    //! Apply filter on directory  list only  regular  and  common file  
-    //! Special  file are note allowed  
+    //! NOTICE : Apply filter on directory  list only  regular  and  common file  
+    //! NOTICE : Special  file are note allowed  
     if(dirent_scaner->d_type & (DT_REG | DT_DIR /*!|... */))   
     { 
       append2tablerow(dirent_scaner->d_name, http_dom_content, subdir , allow_previous_navigation) ;  
-      //!NOTE : maybe add  limit ? 
+      //!MAYBE : add  limit ? 
     }
   }
 
@@ -366,7 +374,7 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
 fobject_t* file_detail(fobject_t * fobj  , char * file_item, int timefmt_opt) 
 {
 
-   fobj->fsize = statops(stat , file_item,st_size) ; //!TODO : make it human readable  
+   fobj->fsize = statops(stat , file_item,st_size) ;  
    fobj->ftime = statops(stat,file_item , st_mtime) ; 
  
    //!When the 2 flags  are used the priority goes for  TIME_NUM  
@@ -408,12 +416,9 @@ static char * file_size_human_readable(float raw_filesize)
   const  size_t byte_unit = 1024;  
   const  char*  symbol_unit={" KMGTPE"} ;
   
-  char symbol_index =0 ; 
-  while (raw_filesize >  byte_unit)
-  {
+  char symbol_index =~0;  
+  while ((raw_filesize >  byte_unit),symbol_index=-~symbol_index) 
      raw_filesize/=byte_unit; 
-     symbol_index=-~symbol_index;  
-  }
    
   char readable_format[10]={0};  
   sprintf(readable_format,"%4.1lf %c",(double)raw_filesize ,  *(symbol_unit+symbol_index)) ;   
@@ -457,7 +462,7 @@ static void  append2tablerow(char item __parmreq,
   if(1 < strlen(subdirent) &&  subdirent) 
   {
     char path[100]={0} ; 
-    //!NOTE: Super ugly but  is just a quick  fix : should be optimized for later :) .....  
+    //!NOTICE: Super ugly but  is just a quick  fix : should be optimized for later :) .....  
     if(0x2f == (*(subdirent+(strlen(subdirent)+~0)) & 0xff)) 
       *(subdirent+strlen(subdirent)+~0)=0; 
 
@@ -524,4 +529,29 @@ append_td:
     prevnav_state^=prevnav_state; 
   }
 
+}
+
+static void  htftp_log(const char * restrict  fmtstr ,  ...) 
+{
+  
+  char  strtime_buffer[1024] = {0} ; 
+  htftp_perfrom_localtime(strtime_buffer) ; 
+
+  __gnuc_va_list ap ; 
+  __builtin_va_start(ap  , fmtstr) ; 
+
+  vsprintf((strtime_buffer +strlen(strtime_buffer)) ,   fmtstr , ap ) ;
+
+  FLOG(MM_INFO, strtime_buffer) ; 
+  __builtin_va_end(ap); 
+
+ 
+} 
+
+static void htftp_perfrom_localtime(char strtime_buffer  __parmreq_(1024)) 
+{
+   time_t  tepoch  = time( (time_t*)0 ) ;     
+   struct  tm *broken_down_time = localtime(&tepoch);  
+   ssize_t readed_bytes = strftime(strtime_buffer , 1024 ,  "%F%T%P : ", broken_down_time) ; 
+   assert(!readed_bytes^strlen(strtime_buffer)) ; 
 }

@@ -1,24 +1,15 @@
-#if !defined(BASIC_DOM) 
-#define  BASIC_DOM 
+#if !defined(HTFTP_CONFIG) 
+#define  HTFTP_CONFIG
 
+#define __version   "1.0"
 #if !defined(CND_FOR_STYLESHEET) 
 # define  CND_FOR_STYLESHEET "https://unpkg.com/98.css" 
 #endif
 
-#if defined(HTML_USE_DARK_MODE)   
-# define HTML_USE_DARK_MODE 1
-#else   
-# define HTML_USE_DARK_MODE 0 
+#if !defined(DEFAULT_PORT) 
+# define DEFAULT_PORT  0x2382 
 #endif 
 
-#if HTML_USE_DARK_MODE 
-# define  HTML_PAGE_SET_DARK_MODE \
-  "<script>"\
-  "document.body.style.backgroundColor=\"black\";"\
-  "</script>"
-#else 
-# define  HTML_PAGE_SET_DARK_MODE  
-#endif 
 
 //!TODO :  Turn it into  binary image
 #define  HTTP_DIRENDER_DOCTYPE                          \
@@ -29,7 +20,7 @@
   "<title>Directory listing </title>"                   \
   "<link rel=\"stylesheet\"href=" CND_FOR_STYLESHEET ">"\
   "</head><script>"\
-  "</script><body><h3>Directory Content  <mark>%s</mark> </h3>"      \
+  "</script><body><h3>Directory Content  <mark>%s</mark> </h3>" \
   "<table>"                                             \
   "<tr>"                                                \
   "<th valign=\"top\"><img src=\"/icons/blank.gif\" alt=\"&#128506;\"></th>"\
@@ -39,11 +30,8 @@
   "</tr><tr><th colspan=\"5\"><hr></th></tr>"
 #define  __TR_BEGIN  "<tr><td valign=\"top\">"
 #define  HTML_ALTIMG "<img alt=\"%s\"></td><td><a href=\"%s\">%s</a></td><td align=\"right\">%s </td><td align=\"right\">%s</td><td>&nbsp;%s" 
-
 #define  __TR_END  "</td></tr>" 
-#define  HTTP_DIRENDER_DOCTYPE_END "<tr><th colspan=\"5\"><hr></th></tr></table></body>"\
-  HTML_PAGE_SET_DARK_MODE\
-  "</html>"
+#define  HTTP_DIRENDER_DOCTYPE_END "<tr><th colspan=\"5\"><hr></th></tr></table></body>""</html>"
 
 //!Miscelleaneous  html  unicode symbole
 //!Source : https://unicodeplus.com/ 
@@ -52,4 +40,6 @@
 #define HTML_UBACK   "&#129192;" 
 
 #define  PREVIOUS ".." 
-#endif 
+
+
+#endif /* !  HTFTP_CONFIG  */ 
