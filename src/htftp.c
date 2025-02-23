@@ -21,7 +21,8 @@
 #include <error.h> 
 #include <errno.h> 
 
-#include "htftp.h"
+#include "htftp.h" 
+#include "htftp_logprint.h" 
 
 struct __http_protocol_header_t 
 {
@@ -46,9 +47,12 @@ struct __htftp_t {
 
 htftp_t *  htftp_start(int  portnumber , htftp_fcfg fconfig , void * extra_argument)   
 {
+   if(~0 == htftp_lp_setup()) 
+     warn("fail to setup log print module ") ; 
+
   int portnumb = ( 0 >= portnumber) ? DEFAULT_PORT : portnumber ; 
 
-  htftp_log("starting  @ %i" , portnumb) ; 
+  LOGINFO("STARTING  AT %i" , portnumb) ; 
   htftp_t *hf =  (htftp_t*) malloc(sizeof(*hf)) ; 
   if(!hf)  
     return nptr;
@@ -105,7 +109,8 @@ void htftp_close(struct  __htftp_t * restrict hf )
 
 static void __use_defconfig(htftp_t  *hf , void *_Nullable xtrargs ) 
 {
-   
+  
+
    __maybe_unused setlocale(LC_TIME ,"") ;
 
    hf->_insaddr =  &(struct sockaddr_in) { 
@@ -529,29 +534,4 @@ append_td:
     prevnav_state^=prevnav_state; 
   }
 
-}
-
-static void  htftp_log(const char * restrict  fmtstr ,  ...) 
-{
-  
-  char  strtime_buffer[1024] = {0} ; 
-  htftp_perfrom_localtime(strtime_buffer) ; 
-
-  __gnuc_va_list ap ; 
-  __builtin_va_start(ap  , fmtstr) ; 
-
-  vsprintf((strtime_buffer +strlen(strtime_buffer)) ,   fmtstr , ap ) ;
-
-  FLOG(MM_INFO, strtime_buffer) ; 
-  __builtin_va_end(ap); 
-
- 
-} 
-
-static void htftp_perfrom_localtime(char strtime_buffer  __parmreq_(1024)) 
-{
-   time_t  tepoch  = time( (time_t*)0 ) ;     
-   struct  tm *broken_down_time = localtime(&tepoch);  
-   ssize_t readed_bytes = strftime(strtime_buffer , 1024 ,  "%F%T%P : ", broken_down_time) ; 
-   assert(!readed_bytes^strlen(strtime_buffer)) ; 
 }

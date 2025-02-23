@@ -134,9 +134,6 @@ static void  append2tablerow(char __item __parmreq,
                                       char * _Nullable __restrict__ subdirent, 
                                       int  ___show_previous); 
 
-static void htftp_log(const char * __restrict__ fmt ,  ... )  ; 
-static void htftp_perfrom_localtime(char  __strtime_buffer  __parmreq_(1024)) ; 
-
 //!###########################################################################
 htftp_t  *htftp_start(int  __port_number ,  
                       __htftp_fcfg_t _Nullable __function_configuration, 
