@@ -103,8 +103,8 @@ _Opac typedef  struct __htftp_t                  htftp_t;
 
 typedef  struct __fobject_t               fobject_t ; 
 struct __fobject_t {
-   char *hr_time ;   //!  human readable  time 
-   char *hr_size ;   //!  human readable  size 
+   char hr_time  _rblock(0xff) ;   //!  human readable  time 
+   char hr_size  _rblock(0xff);    //!  human readable  size 
    size_t fsize ;    
    time_t ftime ;  
 };
@@ -124,7 +124,7 @@ static void  release_local_alloc(char  **_arr) __attribute((deprecated));
 static void  htftp_prepare(char *__restrict__ __global_content , ...) ; 
 static void  setup_htftp(struct __htftp_t  *__restrict__ __hf , int __socket_fd , int __portnumber) ; 
 static void  __use_defconfig(struct __htftp_t* __restrict__ __hf , void * __maybe_unused _Nullable __xtrargs) ;
-static char * file_size_human_readable(float __raw_filesize); 
+static char * file_size_human_readable(fobject_t * __restrict__ __fobj); 
 static void  append2tablerow(char __item __parmreq,
                                       char __render_buffer  __parmreq, 
                                       char * _Nullable __restrict__ subdirent, 

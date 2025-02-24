@@ -381,6 +381,7 @@ static char * htftp_list_dirent_content(char  *dir  , char * dumper )
 fobject_t* file_detail(fobject_t * fobj  , char * file_item, int timefmt_opt) 
 {
 
+   int error= 0 ; 
    fobj->fsize = statops(stat , file_item,st_size) ;  
    fobj->ftime = statops(stat,file_item , st_mtime) ; 
  
@@ -393,11 +394,12 @@ fobject_t* file_detail(fobject_t * fobj  , char * file_item, int timefmt_opt)
      struct  tm * lctime = nptr ; 
      lctime = localtime(&fobj->ftime) ;
      if (!lctime)   
-     {
-       LOGERR("Error occured while formation  time location") ; 
-     }
+       error=-~error ; 
      
-     fobj->hr_time = asctime(lctime) ;  
+     char  *broken_downtime =  nptr ; 
+     broken_downtime =  asctime(lctime) ;
+     if(broken_downtime)
+       memcpy(fobj->hr_time ,  broken_downtime , strlen(broken_downtime)) ; 
    }
   
    if(timefmt_opt & TIME_NUM)  
@@ -405,19 +407,24 @@ fobject_t* file_detail(fobject_t * fobj  , char * file_item, int timefmt_opt)
      char tbuff[100] = {0} ; 
      size_t fstatus =  strftime(tbuff,100 , "%F %T %P" ,  localtime(&fobj->ftime)) ; 
      if(fstatus ^ strlen(tbuff)) 
-     {
-       LOGERR("Error occured while formation  time location") ; 
-     }
-     fobj->hr_time = strdup(tbuff) ; 
+       error=-~error ; 
+    
+     memcpy(fobj->hr_time ,  tbuff ,  strlen(tbuff)) ; 
    }
    
-   fobj->hr_size = file_size_human_readable(fobj->fsize)  ;
+   file_size_human_readable(fobj)  ;
+   //fobj->hr_size = file_size_human_readable(fobj->fsize)  ;
+   
+   if(0 < error) 
+     LOGERR("Error occured while formation  time location") ; 
+
    return  fobj ; 
    
 } 
 
-static char * file_size_human_readable(float raw_filesize)   
+static char * file_size_human_readable(fobject_t * restrict  fobj )   
 {
+  float  raw_filesize  = (float) fobj->fsize ; 
   const  size_t byte_unit = 1024;  
   const  char*  symbol_unit={" KMGTPE"} ;
   
@@ -426,10 +433,8 @@ static char * file_size_human_readable(float raw_filesize)
     raw_filesize/=byte_unit; 
 
    
-  char readable_format[10]={0};  
-  sprintf(readable_format,"%4.1lf %c",(double)raw_filesize ,  *(symbol_unit+symbol_index)) ;   
-
-  return strdup(readable_format) ; 
+  sprintf(fobj->hr_size ,"%4.1lf %c",(double)raw_filesize ,  *(symbol_unit+symbol_index)) ;   
+  return  fobj->hr_size ; 
 
    
 }
@@ -513,9 +518,9 @@ append_td:
   strcat(sources ,  __TR_END) ; 
   strcat(single_node_list , sources) ;
   bzero(sources,  4096); 
-  
-  free(fobj.hr_time), fobj.hr_time=0 ;   
-  free(fobj.hr_size), fobj.hr_size=0 ; 
+ 
+  bzero(fobj.hr_time , 0xff) ;  
+  bzero(fobj.hr_size , 0xff) ;  
   
   if( (prevnav_state & 0xff) ==  0xf0 )  
   {
