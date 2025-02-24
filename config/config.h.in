@@ -1,3 +1,6 @@
+/* @file  config.h.in 
+ * CC0 1.0 Universal  2025 Umar Ba <jUmarB@protonmail.com> 
+ * */
 #if !defined(HTFTP_CONFIG) 
 #define  HTFTP_CONFIG
 
@@ -11,7 +14,7 @@
 #endif 
 
 
-//!TODO :  Turn it into  binary image
+//!TODO :  Turn it into  binary image  ... for next major version 
 #define  HTTP_DIRENDER_DOCTYPE                          \
   "<!DOCTYPE HTML>"                                     \
   "<html lang=\"en\"><head><meta charset=\"utf-8\">"    \

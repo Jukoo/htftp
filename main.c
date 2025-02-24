@@ -1,9 +1,13 @@
-#include <stdio.h> 
+/*  @file main.c 
+ *  @CC0 1.0 Universal 2025  Umar Ba <jUmarB@protonmail.com> 
+ * */
+
 #include <stdlib.h> 
 #include <sys/socket.h> 
 #include <errno.h> 
 #include <err.h>   
 #include <unistd.h>   
+#include <stdio.h> 
 #include <netinet/in.h> 
 #include <arpa/inet.h> 
 #include <string.h> 
@@ -15,7 +19,8 @@
 #include <error.h> 
 #include <locale.h> 
 
-#include "htftp.h" 
+#include "htftp.h"
+#include "htftp_logprint.h"
 
 
 
@@ -94,12 +99,13 @@ main(int ac , char **av , char **env)
   arghlp_context(ac , av ,&argp , &argobj); 
 #endif 
 
-  htftp_t *hf  = htftp_start(argobj._port,nptr, nptr) ;  
+  htftp_t *hf  = htftp_start(argobj._port,nptr, nptr); 
   if (!hf) 
   {
      error(pstatus=EXIT_FAILURE, 0, "fail to start htftp\n"); 
      goto  __prolog; 
-  }
+  } 
+  
   
   char http_request_raw_buffer[HTTP_REQST_BUFF] ={ 0 }; 
   
@@ -111,7 +117,8 @@ main(int ac , char **av , char **env)
     
     if (~0 == polling_status) 
     {
-       warnx("Poll init socket ACK  issue") ; 
+       //warnx("Poll init socket ACK  issue") ; 
+       LOGWARN("Poll init socket acknowledgement issues"); 
        goto __http_restor ;  
     }
     /*Listen only on incomming data  */
@@ -121,8 +128,6 @@ main(int ac , char **av , char **env)
       ssize_t  rbytes =  recv(user_agent_socket,http_request_raw_buffer ,HTTP_REQST_BUFF, 0); 
       if (!rbytes /* No data  */) 
         goto __http_restor ; 
-      
-      printf("%s\n" ,  http_request_raw_buffer) ; 
     }
 
     http_reqhdr_t * http_header  = parse_http_request(http_request_raw_buffer) ;  
@@ -134,8 +139,7 @@ main(int ac , char **av , char **env)
     char *request_content  = http_read_content(target_file, http_request_raw_buffer ) ;  
      
     if (http_transmission(user_agent_socket , request_content)) 
-      warnx("http transmission error") ; 
-
+      LOGERR("http transmission error") ; 
 
     if(http_header)
       free(http_header) , http_header = 0 ; 

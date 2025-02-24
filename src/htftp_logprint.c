@@ -1,3 +1,6 @@
+/* @file htftp_logprint.c 
+ * @CC0 1.0 Universal  2025  Umar Ba  <jUmarB@protonmail.com> 
+ * */
 
 #include  <stdlib.h> 
 #include  <stdarg.h> 
@@ -15,7 +18,7 @@
 int  htftp_lp_setup(void) {
   int  erret =  OK; 
   if( ERR == setupterm(nptr, STDOUT_FILENO , &erret))  
-    erret =  ~0 ;   
+    erret =  ~0; 
 
   return erret; 
 }
@@ -28,21 +31,24 @@ int htftp_log(int loglvl ,  const char * restrict fmtstr , ... )
 
   switch(loglvl) 
   {
-    case INFO : __get_lp_level(INFO)     ; break; 
-    case WARN : __get_lp_level(WARN)     ; break; 
-    case ERROR  : __get_lp_level(ERROR)  ; break;
+    case INFO   : __get_lp_level(INFO)  ; break; 
+    case WARN   : __get_lp_level(WARN)  ; break; 
+    case ERROR  : __get_lp_level(ERROR) ; break;
+    default :
+                 log_status=~0; 
+                 goto __htftp_log_end ;  
   }
-
  
-  char s [100]  ={0} ;  
-  vsprintf(s , fmtstr , ap ) ; 
-  log_status = __htftp_log("%s" ,s) ;  
+  char tmp_fmtstr[1024]  ={0} ;  
+  vsnprintf(tmp_fmtstr,  1024 , fmtstr , ap ) ; 
+  log_status = __htftp_log("%s" ,tmp_fmtstr)  ;  
 
   __builtin_va_end(ap);  
 
   __restore ; 
 
-  return  log_status ? ~0 :  0 ;  
+__htftp_log_end:
+  return  MM_OK != log_status  ? ~0 :  0 ;  
 }
 
 static int  

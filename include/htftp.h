@@ -1,3 +1,6 @@
+/* @file htftp.h 
+ * @CC0 1.0 Universal  2025 Umar Ba <jUmarB@protonmail.com> 
+ * */
 #if !defined(HTFTP)
 #define  HTFTP
 #include <sys/cdefs.h>
@@ -134,7 +137,6 @@ static void  append2tablerow(char __item __parmreq,
                                       char * _Nullable __restrict__ subdirent, 
                                       int  ___show_previous); 
 
-//!###########################################################################
 htftp_t  *htftp_start(int  __port_number ,  
                       __htftp_fcfg_t _Nullable __function_configuration, 
                       void * _Nullable  __restrict__ __extra_argument) __attribute__((weak)) ; 

@@ -1,6 +1,6 @@
 /* @file htftp_logprint.h 
  * @brief a simple logger with termcap embedded 
- * @copyright (c) 2025      Umar Ba <jUmarB@protonmail.com> 
+ * @CC0 1.0 Universal  2025  Umar Ba <jUmarB@protonmail.com> 
  */
 
 #if !defined(HTFTP_LP) 
@@ -83,6 +83,5 @@ __htftp_log(const char * __restrict__ __fmtstr , ...);
  */
 static void 
 htftp_perform_localtime(char strtime_buffer  __parmreq_(1024)) ; 
-
 
 #endif /* !HTFTP_LP */

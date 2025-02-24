@@ -1,3 +1,6 @@
+/*  @file   htftp.c  
+ *  @CC0 1.0 Universal    2025    Umar Ba <jUmarB@protonmail.com>
+ */
 #include <stdlib.h> 
 #include <stdio.h>
 #include <unistd.h>
@@ -52,7 +55,6 @@ htftp_t *  htftp_start(int  portnumber , htftp_fcfg fconfig , void * extra_argum
 
   int portnumb = ( 0 >= portnumber) ? DEFAULT_PORT : portnumber ; 
 
-  LOGINFO("STARTING  AT %i" , portnumb) ; 
   htftp_t *hf =  (htftp_t*) malloc(sizeof(*hf)) ; 
   if(!hf)  
     return nptr;
@@ -73,6 +75,7 @@ htftp_t *  htftp_start(int  portnumber , htftp_fcfg fconfig , void * extra_argum
   
   config(hf , extra_argument) ; 
   
+  LOGINFO("Serving HTFTP on 0.0.0.0 port %i", portnumber)  ;  
   return hf ;  
 }
 
@@ -123,11 +126,11 @@ static void __use_defconfig(htftp_t  *hf , void *_Nullable xtrargs )
    
    int always_reuse_address = 1 ; 
    if (setsockopt(__getsockfd(hf) , SOL_SOCKET,SO_REUSEADDR  ,&always_reuse_address, sizeof(always_reuse_address)))
-     warn("Not  Able to re-use  address") ; 
+     LOGWARN("Not Able to re-use address") ; 
  
    if(bind(__getsockfd(hf) ,(SA*)hf->_insaddr  , slen)) 
    {
-     warn("binding error") ; 
+     LOGWARN("Binding  error") ;  
      close(__getsockfd(hf)); 
      free(hf) ; 
      hf=0;
@@ -136,7 +139,7 @@ static void __use_defconfig(htftp_t  *hf , void *_Nullable xtrargs )
    
    if(listen(__getsockfd(hf),  LISTEN_BACKLOG))
    {
-     warn("listen  error") ; 
+     LOGWARN("Listen error") ; 
      close(__getsockfd(hf)); 
      free(hf) ;
      hf=0; 
@@ -192,7 +195,8 @@ static http_protocol_header_t  * explode(http_protocol_header_t *hproto , char *
       memcpy(hproto->request,     (char *)(chunck+RESOURCE) , strlen((char*)(chunck+RESOURCE))), 
       memcpy(hproto->http_version,(char *)(chunck+VERSION)  , strlen((char*)(chunck+VERSION)))
       ); 
-
+  
+  LOGINFO("%s %s  : %s", hproto->http_version , hproto->method , hproto->request) ; 
 
   return nptr ;  
 }
@@ -204,10 +208,9 @@ char *http_get_requested_content(http_reqhdr_t *http_req , char  * path_target)
 {
   if(path_target)
   {
-     /*!Note : need to be changed  #LATER */
      if(chdir(path_target)) 
      {
-       warnx("Not able to change directory :%s\n", strerror(*__errno_location())); 
+       LOGWARN("Not able to change directory :%s\n", strerror(*__errno_location())); 
        return nptr ; 
      } 
   }
@@ -280,7 +283,6 @@ char * http_read_content(char *filename , char *content_dump)
      return nptr ; 
   }
   
-  //struct   stat stbuf; 
   size_t   requested_bsize = statops(fstat , hyper_text_fd , st_size);  
   if (!requested_bsize)  requested_bsize = HTTP_REQST_BUFF ; 
    
@@ -290,22 +292,22 @@ char * http_read_content(char *filename , char *content_dump)
 
   close(hyper_text_fd) ; 
 
-  memcpy(content_dump , content_buffer ,HTTP_REQST_BUFF) ;   
+  memcpy(content_dump , content_buffer ,HTTP_REQST_BUFF); 
   return  content_dump ; 
 }
 
 
 int http_transmission(int  user_agent_fd,  char content_delivry __parmreq ) 
 {
-  //!NOTE : Change it  
   char content_buffer[HTTP_REQST_BUFF] = {0} ; 
   
   http_prepare(content_buffer,HTTP_HEADER_RESPONSE_OK  /*! HTTP/1.1 200 OK \r\n\r\n*/
                                , content_delivry       /*!        CONTENT          */
                                , STR(CRLF)) ;          /*!       \r\n\r\n          */  
 
-  ssize_t content_bsize  = strlen(content_buffer) ;  
-  //!use sendfile  if the file is  not index.html  
+  ssize_t content_bsize  = strlen(content_buffer) ; 
+  //!TODO :  Allow curl agent to download    
+  //         -> use sendfile  if the file is  not index.html  
   ssize_t sbytes= send(user_agent_fd , content_buffer , sizeof(content_buffer) ,0);  
   return  sbytes^sizeof(content_buffer)  ;  
   
@@ -321,7 +323,7 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
   
   if ( 0 != errno && ERANGE == errno) 
   {
-     warn("Total lenght Path Exceeded %s\n",   strerror(*__errno_location())); 
+     LOGWARN("Total lenght Path Exceeded %s\n",   strerror(*__errno_location())); 
      return nptr; 
   }
  
@@ -346,7 +348,7 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
   DIR *dirent  = opendir(current_dirent_root) ;  
   if (!dirent) 
   {
-     fprintf(stderr ,  "Not Able to open directory  content: %s\n", strerror(*__errno_location())) ;  
+     LOGWARN("Not Able to open directory  content: %s\n", strerror(*__errno_location())) ;  
      return  nptr ; 
   }
   struct dirent  *dirent_scaner = nptr  ;   
@@ -368,7 +370,7 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
   }
 
   if(closedir(dirent))
-    warnx("Error while closing direntory entry  of %s \n" , current_dirent_root) ; 
+    LOGERR("Error while closing direntory entry  of %s \n" , current_dirent_root) ; 
 
   strcat(http_dom_content,HTTP_DIRENDER_DOCTYPE_END) ; 
   memcpy(dumper, http_dom_content , strlen(http_dom_content)) ;  
@@ -392,7 +394,7 @@ fobject_t* file_detail(fobject_t * fobj  , char * file_item, int timefmt_opt)
      lctime = localtime(&fobj->ftime) ;
      if (!lctime)   
      {
-       warnx("Error occured while formation  time location") ; 
+       LOGERR("Error occured while formation  time location") ; 
      }
      
      fobj->hr_time = asctime(lctime) ;  
@@ -404,14 +406,12 @@ fobject_t* file_detail(fobject_t * fobj  , char * file_item, int timefmt_opt)
      size_t fstatus =  strftime(tbuff,100 , "%F %T %P" ,  localtime(&fobj->ftime)) ; 
      if(fstatus ^ strlen(tbuff)) 
      {
-       warnx("Error occured while formation  time location") ; 
+       LOGERR("Error occured while formation  time location") ; 
      }
      fobj->hr_time = strdup(tbuff) ; 
    }
    
    fobj->hr_size = file_size_human_readable(fobj->fsize)  ;
-
-   printf("realtime -> %s : %s -> size %s\n" ,  file_item, fobj->hr_time,  fobj->hr_size) ;
    return  fobj ; 
    
 } 
@@ -422,8 +422,9 @@ static char * file_size_human_readable(float raw_filesize)
   const  char*  symbol_unit={" KMGTPE"} ;
   
   char symbol_index =~0;  
-  while ((raw_filesize >  byte_unit),symbol_index=-~symbol_index) 
-     raw_filesize/=byte_unit; 
+  while (symbol_index =-~symbol_index , (raw_filesize >  byte_unit))     
+    raw_filesize/=byte_unit; 
+
    
   char readable_format[10]={0};  
   sprintf(readable_format,"%4.1lf %c",(double)raw_filesize ,  *(symbol_unit+symbol_index)) ;   
@@ -453,13 +454,11 @@ static void  append2tablerow(char item __parmreq,
                              char *  _Nullable restrict subdirent,
                              int  show_previous)   
 {
-  //!TODO : get item size  and last modified 
   fobject_t fobj ;
   char single_node_list[4096] = __TR_BEGIN  ; 
   char sources[10000]={0}; 
   //! Previous navigation 
   int  prevnav_state =0x00;
-  //!  char *renderer_buffer_offset_start  = (renderer_buffer+(strler))
   char *renderer_buffer_start = (render_buffer+(strlen(render_buffer) + 0xff)) ; 
 
   if(0==show_previous  &&  strstr(item, PREVIOUS)) return;
