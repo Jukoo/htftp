@@ -56,3 +56,4 @@ index.html
 cbuild.sh 
 libarghlp/
 .gitmodules 
+include/config.h 

@@ -1,3 +1,4 @@
+#author Umar Ba <jUmarB@protonmail.com>  
 
 message(CHECK_START "checking ...")
 function(build_doc engine) 
@@ -17,6 +18,3 @@ function(build_doc_using  doc_engine)
   message(CHECK_PASS   "Found" )
   build_doc(${doc_engine}) 
 endfunction() 
- 
-
-

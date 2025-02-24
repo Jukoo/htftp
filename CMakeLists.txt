@@ -1,16 +1,33 @@
+# CopyRight(c) 2025   Umar Ba <jUmarB@protonmail.com> 
+
 cmake_minimum_required(VERSION 3.25) 
-project(localserver  VERSION 1.0 DESCRIPTION "simple local webserver for quick serving document page") 
+project(localserver  
+  VERSION 1.0 
+  DESCRIPTION "simple local webserver for quick serving document page" 
+) 
+
 set(CMAKE_C_STANDARD 11) 
 set(CMAKE_C_STANDARD_REQUIRED ON)  
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)  
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)  
 
-configure_file(base_DOM.h.in ${CMAKE_SOURCE_DIR}/base_DOM.h)
-add_library(htftp  SHARED  htftp.c)  
-set(CMAKE_BUILD_TYPE Debug) 
+set(CONFIG_HEADER_FILE_IN config.h.in) 
+string(SUBSTRING ${CONFIG_HEADER_FILE_IN} 0  8 CONFIG_HEADER_FILE) 
 
+message(STATUS ${CONFIG_HEADER_FILE})   
+configure_file(config/${CONFIG_HEADER_FILE_IN} ${CMAKE_SOURCE_DIR}/include/${CONFIG_HEADER_FILE})
+add_library(htftp  SHARED  src/htftp.c)  
+find_package(Curses  REQUIRED) 
+if(NOT CURSES_FOUND) 
+  message(FATAL_ERROR  "Require Curses ")  
+endif() 
+add_library(logp   SHARED  src/htftp_logprint.c) 
+
+set(CMAKE_BUILD_TYPE Debug) 
+include_directories(include)
+include(optconfig.cmake) 
 add_executable(${PROJECT_NAME}  main.c) 
-include(optionconfig.cmake) 
+
 option(ARGHELPER "Use libarghelper lib from 'https://github.com/Jukoo/libarghlp.git'"  ON)
 option(DOCS "generate the documantation" OFF) 
 set(ARGHELPER_SOURCE "git@github.com:Jukoo/libarghlp.git")
@@ -46,5 +63,5 @@ if(ARGHELPER)
 endif() 
 
 
-target_link_libraries(${PROJECT_NAME} PUBLIC  htftp)  
+target_link_libraries(${PROJECT_NAME} PUBLIC  htftp logp  ${CURSES_LIBRARY})  
 set_target_properties(${PROJECT_NAME} PROPERTIES VERSION ${PROJECT_VERSION})
