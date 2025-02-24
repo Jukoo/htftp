@@ -33,7 +33,7 @@ struct argobjects {
 #include "arghlp.h"
 
 #define SYNOPSYS " [OPTION][VALUE]...\n\
-  Open local http server like FTP site" 
+  Open local htftp server like FTP site" 
 
 #define FOOTER   "by Umar Ba <jUmarB@protonmail.com>"
 
@@ -107,11 +107,11 @@ main(int ac , char **av , char **env)
   } 
   
   
-  char http_request_raw_buffer[HTTP_REQST_BUFF] ={ 0 }; 
+  char htftp_request_raw_buffer[HTTP_REQST_BUFF] ={ 0 }; 
   
   while (1)  
   {  
-    bzero(http_request_raw_buffer , HTTP_REQST_BUFF) ;  
+    bzero(htftp_request_raw_buffer , HTTP_REQST_BUFF) ;  
     int  polling_status =  htftp_polling(hf);  
     int  user_agent_socket =0 ; 
     
@@ -119,32 +119,32 @@ main(int ac , char **av , char **env)
     {
        //warnx("Poll init socket ACK  issue") ; 
        LOGWARN("Poll init socket acknowledgement issues"); 
-       goto __http_restor ;  
+       goto __htftp_restor ;  
     }
     /*Listen only on incomming data  */
     if ((polling_status >>8) & POLLIN) 
     { 
       user_agent_socket = (polling_status & 0xff) ;  
-      ssize_t  rbytes =  recv(user_agent_socket,http_request_raw_buffer ,HTTP_REQST_BUFF, 0); 
+      ssize_t  rbytes =  recv(user_agent_socket,htftp_request_raw_buffer ,HTTP_REQST_BUFF, 0); 
       if (!rbytes /* No data  */) 
-        goto __http_restor ; 
+        goto __htftp_restor ; 
     }
 
-    http_reqhdr_t * http_header  = parse_http_request(http_request_raw_buffer) ;  
-    assert(http_header) ; 
+    htftp_reqhdr_t * htftp_header  =htftp_parse_request(htftp_request_raw_buffer) ;  
+    assert(htftp_header) ; 
     
     void *target_path =  0 < strlen(argobj._path_target)? (void *)&argobj._path_target :  nptr ; 
-    char *target_file = http_get_requested_content(http_header,  (char *)target_path) ;  
-    bzero(http_request_raw_buffer , HTTP_REQST_BUFF) ;
-    char *request_content  = http_read_content(target_file, http_request_raw_buffer ) ;  
+    char *target_file = htftp_get_requested_content(htftp_header,  (char *)target_path) ;  
+    bzero(htftp_request_raw_buffer , HTTP_REQST_BUFF) ;
+    char *request_content  = htftp_read_content(target_file, htftp_request_raw_buffer ) ;  
      
-    if (http_transmission(user_agent_socket , request_content)) 
-      LOGERR("http transmission error") ; 
+    if (htftp_transmission(user_agent_socket , request_content)) 
+      LOGERR("htftp transmission error") ; 
 
-    if(http_header)
-      free(http_header) , http_header = 0 ; 
+    if(htftp_header)
+      free(htftp_header) , htftp_header = 0 ; 
     
-__http_restor: 
+__htftp_restor: 
     close(user_agent_socket) ;  
   }
 

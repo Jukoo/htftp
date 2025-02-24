@@ -27,23 +27,23 @@
 #include "htftp.h" 
 #include "htftp_logprint.h" 
 
-struct __http_protocol_header_t 
+struct __htftp_protocol_header_t 
 {
   char method       _rblock(100); 
   char request      _rblock(100);
-  char http_version _rblock(100);   
+  char htftp_version _rblock(100);   
 }; 
 
-struct __http_request_header_t 
+struct __htftp_request_header_t 
 {
-  http_protocol_header_t http_hproto ; 
+  htftp_protocol_header_t htftp_hproto ; 
   char  server_host _rblock(0xff) ;
   char  user_agent  _rblock(0xff) ;   
 };   
 
 struct __htftp_t { 
    int _sp;
-   struct  __http_request_header_t * _hfhdr ; 
+   struct  __htftp_request_header_t * _hfhdr ; 
    struct sockaddr_in  *_insaddr; 
    struct pollfd _spoll; 
 };
@@ -148,13 +148,13 @@ static void __use_defconfig(htftp_t  *hf , void *_Nullable xtrargs )
    return; 
 }
 
-http_reqhdr_t  *parse_http_request(char http_rbuff __parmreq)  
+htftp_reqhdr_t  *htftp_parse_request(char htftp_rbuff __parmreq)  
 {
    
-   http_reqhdr_t  *hrq = malloc(sizeof(*hrq)) ;  
+   htftp_reqhdr_t  *hrq = malloc(sizeof(*hrq)) ;  
    assert(hrq) ; 
    
-   char *rbuff = (char *) http_rbuff, header[HTTP_REQUEST_HEADER_LINE][0xff]={0} ,  
+   char *rbuff = (char *) htftp_rbuff, header[HTTP_REQUEST_HEADER_LINE][0xff]={0} ,  
         *linefeed=nptr, source[HTTP_REQST_BUFF>>1] = {0}; 
     
    size_t size=0, i=0 ;  
@@ -178,14 +178,14 @@ http_reqhdr_t  *parse_http_request(char http_rbuff __parmreq)
       i=-~i ;  
    }  
    
-   __maybe_unused explode(&hrq->http_hproto ,  *(header+0) ); 
+   __maybe_unused explode(&hrq->htftp_hproto ,  *(header+0) ); 
    memcpy(hrq->server_host ,  (char*)*(header+1) , strlen((char *)*(header+1)) )  ; 
    memcpy(hrq->user_agent,  (char*)*(header+2) , strlen((char *)*(header+2)) ) ; 
   
    return  hrq ; 
 }
 
-static http_protocol_header_t  * explode(http_protocol_header_t *hproto , char *raw_data)  
+static htftp_protocol_header_t  * explode(htftp_protocol_header_t *hproto , char *raw_data)  
 {
 
   char chunck[HTTP_REQUEST_HEADER_LINE][0xff] = {0} ; 
@@ -193,18 +193,18 @@ static http_protocol_header_t  * explode(http_protocol_header_t *hproto , char *
   sscanf(raw_data , "%s  %s  %s", 
       memcpy(hproto->method,      (char *)(chunck+METHOD)   , strlen((char*)(chunck+METHOD))), 
       memcpy(hproto->request,     (char *)(chunck+RESOURCE) , strlen((char*)(chunck+RESOURCE))), 
-      memcpy(hproto->http_version,(char *)(chunck+VERSION)  , strlen((char*)(chunck+VERSION)))
+      memcpy(hproto->htftp_version,(char *)(chunck+VERSION)  , strlen((char*)(chunck+VERSION)))
       ); 
   
-  LOGINFO("%s %s  : %s", hproto->http_version , hproto->method , hproto->request) ; 
+  LOGINFO("%s %s  : %s", hproto->htftp_version , hproto->method , hproto->request) ; 
 
   return nptr ;  
 }
 
 
-//! retrieve  the requested content from http_request_header_t 
+//! retrieve  the requested content from htftp_request_header_t 
 //! GET  the requested resource  from user agent 
-char *http_get_requested_content(http_reqhdr_t *http_req , char  * path_target)   
+char *htftp_get_requested_content(htftp_reqhdr_t *htftp_req , char  * path_target)   
 {
   if(path_target)
   {
@@ -214,7 +214,7 @@ char *http_get_requested_content(http_reqhdr_t *http_req , char  * path_target)
        return nptr ; 
      } 
   }
-  char *requested_filename  =  (char *) http_req->http_hproto.request   ;
+  char *requested_filename  =  (char *) htftp_req->htftp_hproto.request   ;
   
   if(1 == strlen(requested_filename)  &&  0x2f == (*requested_filename & 0xff) )  
   {
@@ -237,9 +237,9 @@ char *http_get_requested_content(http_reqhdr_t *http_req , char  * path_target)
   if(fmode & S_IFREG) 
   {
      //!Truncate  asked request  
-     memcpy(http_req->http_hproto.request, requested_filename , strlen(requested_filename)) ;  
-     bzero((http_req->http_hproto.request+strlen(requested_filename)),strlen(requested_filename)) ; 
-     return http_req->http_hproto.request ;  
+     memcpy(htftp_req->htftp_hproto.request, requested_filename , strlen(requested_filename)) ;  
+     bzero((htftp_req->htftp_hproto.request+strlen(requested_filename)),strlen(requested_filename)) ; 
+     return htftp_req->htftp_hproto.request ;  
   }
 
   if (fmode & S_IFDIR)
@@ -248,9 +248,9 @@ char *http_get_requested_content(http_reqhdr_t *http_req , char  * path_target)
    memcpy(dirent_marker ,requested_filename, strlen(requested_filename));
    //!just  add  '#' at the end  to mark it as directory 
    memset((dirent_marker+strlen(dirent_marker)), 0x23 , 1 ) ;  
-   bzero(http_req->http_hproto.request , 0xff) ; 
-   memcpy(http_req->http_hproto.request, dirent_marker, strlen(dirent_marker)) ; 
-   return  http_req->http_hproto.request ; 
+   bzero(htftp_req->htftp_hproto.request , 0xff) ; 
+   memcpy(htftp_req->htftp_hproto.request, dirent_marker, strlen(dirent_marker)) ; 
+   return  htftp_req->htftp_hproto.request ; 
   }
 
   return nptr ;  
@@ -258,19 +258,19 @@ char *http_get_requested_content(http_reqhdr_t *http_req , char  * path_target)
 
 
 //!  Read  the asked ressource 
-char * http_read_content(char *filename , char *content_dump)  
+char * htftp_read_content(char *filename , char *content_dump)  
 {
   char content_buffer[HTTP_REQST_BUFF] =  {0} ; 
    
   if(!filename)      
-    return http_list_dirent_content(nptr , content_dump) ;   
+    return htftp_list_dirent_content(nptr , content_dump) ;   
    
   char *is_dir = strchr(filename , 0x23) ;  
   
   if(is_dir)
   {
     *is_dir = 0 ;   
-    return http_list_dirent_content(filename , content_dump) ; 
+    return htftp_list_dirent_content(filename , content_dump) ; 
   } 
   
   if (access(filename , F_OK| R_OK)) return  nptr ; 
@@ -297,11 +297,11 @@ char * http_read_content(char *filename , char *content_dump)
 }
 
 
-int http_transmission(int  user_agent_fd,  char content_delivry __parmreq ) 
+int htftp_transmission(int  user_agent_fd,  char content_delivry __parmreq ) 
 {
   char content_buffer[HTTP_REQST_BUFF] = {0} ; 
   
-  http_prepare(content_buffer,HTTP_HEADER_RESPONSE_OK  /*! HTTP/1.1 200 OK \r\n\r\n*/
+  htftp_prepare(content_buffer,HTTP_HEADER_RESPONSE_OK  /*! HTTP/1.1 200 OK \r\n\r\n*/
                                , content_delivry       /*!        CONTENT          */
                                , STR(CRLF)) ;          /*!       \r\n\r\n          */  
 
@@ -313,7 +313,7 @@ int http_transmission(int  user_agent_fd,  char content_delivry __parmreq )
   
 }
 
-static char * http_list_dirent_content(char  *dir  , char * dumper )   
+static char * htftp_list_dirent_content(char  *dir  , char * dumper )   
 {
   
   errno = 0 ; 
@@ -327,7 +327,7 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
      return nptr; 
   }
  
-  char  http_dom_content[HTTP_REQST_BUFF] = {0};
+  char  htftp_dom_content[HTTP_REQST_BUFF] = {0};
   char subdir[PATH_MAX_LENGHT] = {0} ; 
   if(dir)  
   { 
@@ -342,7 +342,7 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
   }
    
   
-  DOM_TITLE(!dir? "/": dir ,  http_dom_content) ;
+  DOM_TITLE(!dir? "/": dir ,  htftp_dom_content) ;
   //! make  a pot hole for pervious navigation item  
   
   DIR *dirent  = opendir(current_dirent_root) ;  
@@ -364,7 +364,7 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
     //! NOTICE : Special  file are note allowed  
     if(dirent_scaner->d_type & (DT_REG | DT_DIR /*!|... */))   
     { 
-      append2tablerow(dirent_scaner->d_name, http_dom_content, subdir , allow_previous_navigation) ;  
+      append2tablerow(dirent_scaner->d_name, htftp_dom_content, subdir , allow_previous_navigation) ;  
       //!MAYBE : add  limit ? 
     }
   }
@@ -372,8 +372,8 @@ static char * http_list_dirent_content(char  *dir  , char * dumper )
   if(closedir(dirent))
     LOGERR("Error while closing direntory entry  of %s \n" , current_dirent_root) ; 
 
-  strcat(http_dom_content,HTTP_DIRENDER_DOCTYPE_END) ; 
-  memcpy(dumper, http_dom_content , strlen(http_dom_content)) ;  
+  strcat(htftp_dom_content,HTTP_DIRENDER_DOCTYPE_END) ; 
+  memcpy(dumper, htftp_dom_content , strlen(htftp_dom_content)) ;  
   return dumper; 
 
 }
@@ -433,7 +433,7 @@ static char * file_size_human_readable(float raw_filesize)
 
    
 }
-static void  http_prepare(char * restrict  __global_content , ...)
+static void  htftp_prepare(char * restrict  __global_content , ...)
 {
    int max_item = HTTP_GLOBAL_CONTENT_DISPATCH  ;  
    __gnuc_va_list ap ;
@@ -472,8 +472,8 @@ static void  append2tablerow(char item __parmreq,
 
     //!  start  from the 2nd index of path 
     //!  the first index is reserved  to resolve path  
-    char *http_path= (path+1) ;
-    sprintf(http_path  , "%s%c%s" ,  subdirent , 0x2f ,item) ;
+    char *htftp_path= (path+1) ;
+    sprintf(htftp_path  , "%s%c%s" ,  subdirent , 0x2f ,item) ;
     memset(path , 0x2e , 1 );  
     file_detail(&fobj, path, TIME_NUM ) ; 
   
@@ -481,7 +481,7 @@ static void  append2tablerow(char item __parmreq,
     {
       if(!strcmp(item, PREVIOUS))  
       { 
-        sprintf(sources, HTML_ALTIMG, HTML_UBACK , http_path,"Parent Directory", EMPTY_SPACE, EMPTY_SPACE, "Go back")  ;
+        sprintf(sources, HTML_ALTIMG, HTML_UBACK , htftp_path,"Parent Directory", EMPTY_SPACE, EMPTY_SPACE, "Go back")  ;
         prevnav_state=0xf0; 
         goto  append_td ; 
       } 
@@ -489,9 +489,9 @@ static void  append2tablerow(char item __parmreq,
     
     size_t type  = statops(stat , path,  st_mode) ; 
     if (type  & S_IFREG) 
-      sprintf(sources, HTML_ALTIMG , HTML_UDOC , http_path , item, fobj.hr_time ,  fobj.hr_size , DESC("--------")); 
+      sprintf(sources, HTML_ALTIMG , HTML_UDOC , htftp_path , item, fobj.hr_time ,  fobj.hr_size , DESC("--------")); 
     else 
-      sprintf(sources, HTML_ALTIMG , HTML_UFOLDER , http_path, item, fobj.hr_time  , fobj.hr_size ,DESC("--------")); 
+      sprintf(sources, HTML_ALTIMG , HTML_UFOLDER , htftp_path, item, fobj.hr_time  , fobj.hr_size ,DESC("--------")); 
   } 
 
   //!root 

@@ -10,7 +10,10 @@
 # define __parmreq_(__sizereq) [static __sizereq] 
 #endif 
 
-#define  nptr  NULL  
+#if defined(nptr) 
+# undef nptr 
+#endif  
+# define nptr NULL 
 
 #define  FLOG(__severity_level ,  __mesg) \
     fmtmsg(MM_CONSOLE|MM_PRINT , "HTFTP:v1.0" , __severity_level , __mesg ,0/* no action */, 0/* no tag*/)
