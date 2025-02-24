@@ -63,6 +63,7 @@ void *argparse(int ac  , char * const *av ,  const char * shortopts , struct opt
         break; 
       case 'v':
         fprintf(stdout , " version  %s \n",  __version) ;  
+        exit(EXIT_SUCCESS) ;
         break; 
       case 'p':  
         aobj->_port = strtol(optarg , (void *)0 ,  10) ; 
